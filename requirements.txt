@@ -1,0 +1,4 @@
+# HELIOS runtime dependencies.
+# Deliberately small and boring: validation and declarative-spec parsing only.
+pydantic>=2.7,<3
+PyYAML>=6,<7

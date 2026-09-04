@@ -1,0 +1,57 @@
+# The execution vocabulary HELIOS must never contain.
+#
+# HELIOS is execution-blind. This file is the machine-readable definition of
+# that boundary; tests/test_execution_blind.py enforces it against every
+# identifier, non-docstring string literal and fixture value in the tree.
+#
+# Two sections. BARE terms are forbidden as whole words. PATTERN terms are
+# regular expressions for compound names that have no innocent reading.
+#
+# Prose is deliberately exempt: a docstring, a comment or a document must be
+# able to NAME the boundary in order to explain it. Code and data must not
+# cross it. This file itself is excluded from the scan for the same reason.
+
+[BARE]
+position
+positions
+broker
+brokers
+account
+accounts
+pnl
+profit
+loss
+losses
+win
+wins
+winrate
+drawdown
+slippage
+margin
+equity
+leverage
+lot
+lots
+fill
+fills
+filled
+trade
+trades
+trading
+stoploss
+takeprofit
+trailing
+
+[PATTERN]
+stop[-_ ]?loss
+take[-_ ]?profit
+trailing[-_ ]?stop
+re[-_ ]?entry
+entry[-_ ]?(price|signal|point|time)
+exit[-_ ]?(price|signal|point|time)
+(trade|order|position)[-_ ]?(id|ids|price|size|status|entry|exit|opened|closed|rejected|filled)
+order[-_ ]?(id|type|book|status|side)
+account[-_ ]?(id|balance|equity|state)
+position[-_ ]?(size|state)
+p[-_ ]?and[-_ ]?l
+risk[-_ ]?per[-_ ]?(trade|position)

@@ -1,0 +1,36 @@
+# Example HELIOS configuration.
+#
+# This file is documentation. It is NOT loaded automatically: point
+# HELIOS_CONFIG_FILE at a real file, or set the equivalent HELIOS_* environment
+# variables. Environment variables win over file values, so one container image
+# runs in every environment with only its injected environment differing.
+#
+# No secrets belong in this file or in any file committed to this repository.
+
+environment = "dev"
+
+[logging]
+# One of DEBUG, INFO, WARNING, ERROR, CRITICAL. Logs are JSON and UTC.
+level = "INFO"
+
+[freshness]
+# A fact is usable while its age, measured from the bar's close instant, is at
+# most (timeframe duration * max_age_multiplier) + grace_seconds. One rule
+# scales from M1 to D1; there is no per-timeframe table in source.
+max_age_multiplier = "1.5"
+grace_seconds = 60
+# Whether a strategy may evaluate against a bar HERMES has not marked complete.
+allow_incomplete_frames = false
+
+# Optional: absolute per-timeframe limits, in seconds, when a timeframe
+# genuinely needs a different rule from the derived one.
+# [freshness.overrides]
+# H4 = 21600
+
+[hermes]
+# HELIOS refuses market facts whose schema version it does not understand
+# rather than guessing at unfamiliar fields.
+accepted_schema_versions = ["hermes.market_fact/1.0.0"]
+
+# [strategies]
+# package_dir = "/etc/helios/strategies"

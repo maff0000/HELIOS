@@ -1,0 +1,305 @@
+{
+  "fixture_schema_version": "helios.hermes_fixture/1.0.0",
+  "fixture_id": "stale_xau_usd_h4",
+  "description": "Well-formed H4 facts judged three days after the last bar closed.",
+  "expectations": [
+    "the frames themselves are valid and load cleanly",
+    "the latest frame is far beyond any sane max age for H4",
+    "require_fresh_frame must raise StaleFactError; nothing is defaulted or zeroed"
+  ],
+  "instrument": "XAU_USD",
+  "timeframe": "H4",
+  "fact_schema_version": "hermes.market_fact/1.0.0",
+  "source": "hermes",
+  "reference_now_utc": "2026-01-10T00:00:00Z",
+  "frames": [
+    {
+      "timestamp_utc": "2026-01-05T00:00:00Z",
+      "candle": {
+        "open": "2395.00",
+        "high": "2397.50",
+        "low": "2393.50",
+        "close": "2396.00",
+        "volume": "1000",
+        "complete": true,
+        "source": "hermes"
+      },
+      "indicators": {
+        "rsi_14": "44.00",
+        "ema_9": "2396.40",
+        "ema_21": "2397.20",
+        "ema_50": "2396.00",
+        "ema_200": "2400.00",
+        "atr_14": "6.00",
+        "regime": "TRANSITION",
+        "session": "ASIA"
+      },
+      "observed_at_utc": "2026-01-05T04:00:01Z",
+      "ingested_at_utc": "2026-01-05T04:00:02Z"
+    },
+    {
+      "timestamp_utc": "2026-01-05T04:00:00Z",
+      "candle": {
+        "open": "2396.00",
+        "high": "2398.70",
+        "low": "2394.50",
+        "close": "2397.20",
+        "volume": "1025",
+        "complete": true,
+        "source": "hermes"
+      },
+      "indicators": {
+        "rsi_14": "47.00",
+        "ema_9": "2397.60",
+        "ema_21": "2398.40",
+        "ema_50": "2397.00",
+        "ema_200": "2400.00",
+        "atr_14": "5.80",
+        "regime": "TRANSITION",
+        "session": "ASIA"
+      },
+      "observed_at_utc": "2026-01-05T08:00:01Z",
+      "ingested_at_utc": "2026-01-05T08:00:02Z"
+    },
+    {
+      "timestamp_utc": "2026-01-05T08:00:00Z",
+      "candle": {
+        "open": "2397.20",
+        "high": "2399.90",
+        "low": "2395.70",
+        "close": "2398.40",
+        "volume": "1050",
+        "complete": true,
+        "source": "hermes"
+      },
+      "indicators": {
+        "rsi_14": "50.00",
+        "ema_9": "2398.80",
+        "ema_21": "2399.60",
+        "ema_50": "2398.00",
+        "ema_200": "2400.00",
+        "atr_14": "5.60",
+        "regime": "TRANSITION",
+        "session": "LONDON"
+      },
+      "observed_at_utc": "2026-01-05T12:00:01Z",
+      "ingested_at_utc": "2026-01-05T12:00:02Z"
+    },
+    {
+      "timestamp_utc": "2026-01-05T12:00:00Z",
+      "candle": {
+        "open": "2398.40",
+        "high": "2400.60",
+        "low": "2396.90",
+        "close": "2399.10",
+        "volume": "1075",
+        "complete": true,
+        "source": "hermes"
+      },
+      "indicators": {
+        "rsi_14": "52.00",
+        "ema_9": "2399.50",
+        "ema_21": "2400.30",
+        "ema_50": "2399.00",
+        "ema_200": "2400.00",
+        "atr_14": "5.40",
+        "regime": "TRANSITION",
+        "session": "LONDON"
+      },
+      "observed_at_utc": "2026-01-05T16:00:01Z",
+      "ingested_at_utc": "2026-01-05T16:00:02Z"
+    },
+    {
+      "timestamp_utc": "2026-01-05T16:00:00Z",
+      "candle": {
+        "open": "2399.10",
+        "high": "2401.10",
+        "low": "2397.60",
+        "close": "2399.60",
+        "volume": "1100",
+        "complete": true,
+        "source": "hermes"
+      },
+      "indicators": {
+        "rsi_14": "54.00",
+        "ema_9": "2400.00",
+        "ema_21": "2400.80",
+        "ema_50": "2399.50",
+        "ema_200": "2400.00",
+        "atr_14": "5.20",
+        "regime": "LOW_VOLATILITY",
+        "session": "NEW_YORK"
+      },
+      "observed_at_utc": "2026-01-05T20:00:01Z",
+      "ingested_at_utc": "2026-01-05T20:00:02Z"
+    },
+    {
+      "timestamp_utc": "2026-01-05T20:00:00Z",
+      "candle": {
+        "open": "2399.60",
+        "high": "2401.60",
+        "low": "2398.10",
+        "close": "2400.10",
+        "volume": "1125",
+        "complete": true,
+        "source": "hermes"
+      },
+      "indicators": {
+        "rsi_14": "56.00",
+        "ema_9": "2400.50",
+        "ema_21": "2401.30",
+        "ema_50": "2399.90",
+        "ema_200": "2400.00",
+        "atr_14": "5.00",
+        "regime": "LOW_VOLATILITY",
+        "session": "NEW_YORK"
+      },
+      "observed_at_utc": "2026-01-06T00:00:01Z",
+      "ingested_at_utc": "2026-01-06T00:00:02Z"
+    },
+    {
+      "timestamp_utc": "2026-01-06T00:00:00Z",
+      "candle": {
+        "open": "2400.10",
+        "high": "2403.80",
+        "low": "2398.60",
+        "close": "2402.30",
+        "volume": "1150",
+        "complete": true,
+        "source": "hermes"
+      },
+      "indicators": {
+        "rsi_14": "61.00",
+        "ema_9": "2402.70",
+        "ema_21": "2403.50",
+        "ema_50": "2400.40",
+        "ema_200": "2400.00",
+        "atr_14": "5.40",
+        "regime": "BULL_TREND",
+        "session": "ASIA"
+      },
+      "observed_at_utc": "2026-01-06T04:00:01Z",
+      "ingested_at_utc": "2026-01-06T04:00:02Z"
+    },
+    {
+      "timestamp_utc": "2026-01-06T04:00:00Z",
+      "candle": {
+        "open": "2402.30",
+        "high": "2406.00",
+        "low": "2400.80",
+        "close": "2404.50",
+        "volume": "1175",
+        "complete": true,
+        "source": "hermes"
+      },
+      "indicators": {
+        "rsi_14": "65.00",
+        "ema_9": "2404.90",
+        "ema_21": "2405.70",
+        "ema_50": "2401.20",
+        "ema_200": "2400.05",
+        "atr_14": "5.60",
+        "regime": "BULL_TREND",
+        "session": "ASIA"
+      },
+      "observed_at_utc": "2026-01-06T08:00:01Z",
+      "ingested_at_utc": "2026-01-06T08:00:02Z"
+    },
+    {
+      "timestamp_utc": "2026-01-06T08:00:00Z",
+      "candle": {
+        "open": "2404.50",
+        "high": "2407.60",
+        "low": "2403.00",
+        "close": "2406.10",
+        "volume": "1200",
+        "complete": true,
+        "source": "hermes"
+      },
+      "indicators": {
+        "rsi_14": "68.00",
+        "ema_9": "2406.50",
+        "ema_21": "2407.30",
+        "ema_50": "2402.10",
+        "ema_200": "2400.15",
+        "atr_14": "5.80",
+        "regime": "BULL_TREND",
+        "session": "LONDON"
+      },
+      "observed_at_utc": "2026-01-06T12:00:01Z",
+      "ingested_at_utc": "2026-01-06T12:00:02Z"
+    },
+    {
+      "timestamp_utc": "2026-01-06T12:00:00Z",
+      "candle": {
+        "open": "2406.10",
+        "high": "2409.50",
+        "low": "2404.60",
+        "close": "2408.00",
+        "volume": "1225",
+        "complete": true,
+        "source": "hermes"
+      },
+      "indicators": {
+        "rsi_14": "71.00",
+        "ema_9": "2408.40",
+        "ema_21": "2409.20",
+        "ema_50": "2403.00",
+        "ema_200": "2400.30",
+        "atr_14": "6.00",
+        "regime": "BULL_TREND",
+        "session": "LONDON"
+      },
+      "observed_at_utc": "2026-01-06T16:00:01Z",
+      "ingested_at_utc": "2026-01-06T16:00:02Z"
+    },
+    {
+      "timestamp_utc": "2026-01-06T16:00:00Z",
+      "candle": {
+        "open": "2408.00",
+        "high": "2410.70",
+        "low": "2406.50",
+        "close": "2409.20",
+        "volume": "1250",
+        "complete": true,
+        "source": "hermes"
+      },
+      "indicators": {
+        "rsi_14": "73.00",
+        "ema_9": "2409.60",
+        "ema_21": "2410.40",
+        "ema_50": "2403.80",
+        "ema_200": "2400.50",
+        "atr_14": "6.20",
+        "regime": "BULL_TREND",
+        "session": "NEW_YORK"
+      },
+      "observed_at_utc": "2026-01-06T20:00:01Z",
+      "ingested_at_utc": "2026-01-06T20:00:02Z"
+    },
+    {
+      "timestamp_utc": "2026-01-06T20:00:00Z",
+      "candle": {
+        "open": "2409.20",
+        "high": "2411.90",
+        "low": "2407.70",
+        "close": "2410.40",
+        "volume": "1275",
+        "complete": true,
+        "source": "hermes"
+      },
+      "indicators": {
+        "rsi_14": "74.00",
+        "ema_9": "2410.80",
+        "ema_21": "2411.60",
+        "ema_50": "2404.50",
+        "ema_200": "2400.75",
+        "atr_14": "6.40",
+        "regime": "BULL_TREND",
+        "session": "NEW_YORK"
+      },
+      "observed_at_utc": "2026-01-07T00:00:01Z",
+      "ingested_at_utc": "2026-01-07T00:00:02Z"
+    }
+  ]
+}

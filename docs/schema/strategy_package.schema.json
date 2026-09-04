@@ -1,0 +1,538 @@
+{
+  "$defs": {
+    "ChainComponent": {
+      "additionalProperties": false,
+      "description": "One atomic strategy participating in a chain.\n\nComponents reference atomic strategies. v1 chains consume atoms directly;\nchain-of-chain recursion is out of scope without explicit architecture\nauthority, and is refused by the loader.",
+      "properties": {
+        "direction_relationship": {
+          "enum": [
+            "SAME",
+            "OPPOSITE",
+            "ANY"
+          ],
+          "title": "DirectionRelationship",
+          "type": "string"
+        },
+        "required_states": {
+          "items": {
+            "enum": [
+              "DORMANT",
+              "FORMING",
+              "MATCHED",
+              "ACTIVE",
+              "WEAKENING",
+              "INVALID",
+              "EXPIRED"
+            ],
+            "title": "StrategyState",
+            "type": "string"
+          },
+          "title": "Required States",
+          "type": "array"
+        },
+        "role": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Z][A-Z0-9_]{1,31}$",
+              "title": "SemanticRole",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Role"
+        },
+        "sequence_index": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sequence Index"
+        },
+        "strategy_id": {
+          "pattern": "^[a-z][a-z0-9_]{2,63}$",
+          "title": "StrategyId",
+          "type": "string"
+        },
+        "strategy_version": {
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+          "title": "StrategyVersion",
+          "type": "string"
+        }
+      },
+      "required": [
+        "strategy_id",
+        "strategy_version",
+        "direction_relationship",
+        "required_states"
+      ],
+      "title": "ChainComponent",
+      "type": "object"
+    },
+    "ChainSpec": {
+      "additionalProperties": false,
+      "description": "The composition definition.",
+      "properties": {
+        "components": {
+          "items": {
+            "$ref": "#/$defs/ChainComponent"
+          },
+          "title": "Components",
+          "type": "array"
+        },
+        "explanation_required": {
+          "title": "Explanation Required",
+          "type": "boolean"
+        },
+        "ordering_window_seconds": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ordering Window Seconds"
+        },
+        "primitive": {
+          "enum": [
+            "ALL",
+            "ANY",
+            "SEQUENCE",
+            "CONTEXT_TRIGGER"
+          ],
+          "title": "ChainPrimitive",
+          "type": "string"
+        }
+      },
+      "required": [
+        "primitive",
+        "components",
+        "explanation_required"
+      ],
+      "title": "ChainSpec",
+      "type": "object"
+    },
+    "DirectionSpec": {
+      "additionalProperties": false,
+      "description": "How the package expresses direction.",
+      "properties": {
+        "component_relationship": {
+          "anyOf": [
+            {
+              "enum": [
+                "SAME",
+                "OPPOSITE",
+                "ANY"
+              ],
+              "title": "DirectionRelationship",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Component Relationship"
+        },
+        "mode": {
+          "enum": [
+            "DIRECTIONAL",
+            "NON_DIRECTIONAL"
+          ],
+          "title": "DirectionMode",
+          "type": "string"
+        },
+        "resolution": {
+          "enum": [
+            "STRATEGY_LOCAL",
+            "FROM_COMPONENTS"
+          ],
+          "title": "DirectionResolution",
+          "type": "string"
+        }
+      },
+      "required": [
+        "mode",
+        "resolution"
+      ],
+      "title": "DirectionSpec",
+      "type": "object"
+    },
+    "ExpirySpec": {
+      "additionalProperties": false,
+      "description": "When an unresolved match ages out.",
+      "properties": {
+        "duration_seconds": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Duration Seconds"
+        },
+        "frames": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Frames"
+        },
+        "mode": {
+          "enum": [
+            "NEVER",
+            "FRAMES",
+            "DURATION"
+          ],
+          "title": "ExpiryMode",
+          "type": "string"
+        }
+      },
+      "required": [
+        "mode"
+      ],
+      "title": "ExpirySpec",
+      "type": "object"
+    },
+    "InputRequirement": {
+      "additionalProperties": false,
+      "description": "One HERMES input the strategy declares it needs.\n\nThis is the ONLY place a semantic role is bound to a timeframe, and it is\nper package by design.",
+      "properties": {
+        "lookback": {
+          "title": "Lookback",
+          "type": "integer"
+        },
+        "max_age_seconds": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Age Seconds"
+        },
+        "required_fields": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Required Fields",
+          "type": "array"
+        },
+        "role": {
+          "pattern": "^[A-Z][A-Z0-9_]{1,31}$",
+          "title": "SemanticRole",
+          "type": "string"
+        },
+        "timeframe": {
+          "enum": [
+            "M1",
+            "M5",
+            "M15",
+            "H1",
+            "H4",
+            "D1"
+          ],
+          "title": "Timeframe",
+          "type": "string"
+        }
+      },
+      "required": [
+        "role",
+        "timeframe",
+        "lookback",
+        "required_fields"
+      ],
+      "title": "InputRequirement",
+      "type": "object"
+    },
+    "PackageIdentity": {
+      "additionalProperties": false,
+      "description": "CER-compatible identity of the packaged strategy or chain.",
+      "properties": {
+        "strategy_id": {
+          "pattern": "^[a-z][a-z0-9_]{2,63}$",
+          "title": "StrategyId",
+          "type": "string"
+        },
+        "strategy_version": {
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+          "title": "StrategyVersion",
+          "type": "string"
+        }
+      },
+      "required": [
+        "strategy_id",
+        "strategy_version"
+      ],
+      "title": "PackageIdentity",
+      "type": "object"
+    },
+    "PackageMetadata": {
+      "additionalProperties": false,
+      "description": "Human-facing provenance of the package itself.",
+      "properties": {
+        "authored_at_utc": {
+          "format": "date-time",
+          "title": "Authored At Utc",
+          "type": "string"
+        },
+        "authored_by": {
+          "title": "Authored By",
+          "type": "string"
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "description",
+        "authored_by",
+        "authored_at_utc"
+      ],
+      "title": "PackageMetadata",
+      "type": "object"
+    },
+    "ParameterSpec": {
+      "additionalProperties": false,
+      "description": "A declared parameter with its value and its permitted range.",
+      "properties": {
+        "allowed": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Allowed"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "maximum": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Maximum"
+        },
+        "minimum": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Minimum"
+        },
+        "type": {
+          "enum": [
+            "INTEGER",
+            "DECIMAL",
+            "BOOLEAN",
+            "STRING"
+          ],
+          "title": "ParameterType",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "title": "Value"
+        }
+      },
+      "required": [
+        "type",
+        "value"
+      ],
+      "title": "ParameterSpec",
+      "type": "object"
+    },
+    "PersistenceSpec": {
+      "additionalProperties": false,
+      "description": "How long a match must hold, and whether weakening is published.",
+      "properties": {
+        "min_matched_frames": {
+          "title": "Min Matched Frames",
+          "type": "integer"
+        },
+        "weakening_enabled": {
+          "title": "Weakening Enabled",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "min_matched_frames",
+        "weakening_enabled"
+      ],
+      "title": "PersistenceSpec",
+      "type": "object"
+    },
+    "TimingSpec": {
+      "additionalProperties": false,
+      "description": "When the strategy is evaluated.",
+      "properties": {
+        "evaluate_on": {
+          "enum": [
+            "CLOSED_FRAME",
+            "EVERY_FRAME"
+          ],
+          "title": "EvaluateOn",
+          "type": "string"
+        }
+      },
+      "required": [
+        "evaluate_on"
+      ],
+      "title": "TimingSpec",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Declarative strategy/chain definition consumed by HELIOS and emitted by HSA. Package schema_version: helios.strategy_package/1.0.0.",
+  "properties": {
+    "chain": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ChainSpec"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "direction": {
+      "$ref": "#/$defs/DirectionSpec"
+    },
+    "expiry": {
+      "$ref": "#/$defs/ExpirySpec"
+    },
+    "identity": {
+      "$ref": "#/$defs/PackageIdentity"
+    },
+    "inputs": {
+      "items": {
+        "$ref": "#/$defs/InputRequirement"
+      },
+      "title": "Inputs",
+      "type": "array"
+    },
+    "kind": {
+      "enum": [
+        "ATOMIC",
+        "CHAIN"
+      ],
+      "title": "PackageKind",
+      "type": "string"
+    },
+    "metadata": {
+      "$ref": "#/$defs/PackageMetadata"
+    },
+    "parameters": {
+      "additionalProperties": {
+        "$ref": "#/$defs/ParameterSpec"
+      },
+      "title": "Parameters",
+      "type": "object"
+    },
+    "persistence": {
+      "$ref": "#/$defs/PersistenceSpec"
+    },
+    "schema_version": {
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "timing": {
+      "$ref": "#/$defs/TimingSpec"
+    }
+  },
+  "required": [
+    "schema_version",
+    "kind",
+    "identity",
+    "metadata",
+    "inputs",
+    "parameters",
+    "direction",
+    "timing",
+    "persistence",
+    "expiry"
+  ],
+  "title": "HELIOS strategy package",
+  "type": "object"
+}

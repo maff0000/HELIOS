@@ -1,0 +1,4 @@
+-r requirements.txt
+
+# HELIOS development/test dependencies.
+pytest>=8,<10

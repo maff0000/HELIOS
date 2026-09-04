@@ -1,0 +1,62 @@
+#!/usr/bin/env sh
+#
+# HELIOS developer bootstrap.
+#
+# Run once after cloning:   ./ops/bootstrap
+#
+# It wires the repository's own hooks directory into Git so the secret-scanning
+# pre-commit gate is active, and verifies the tools that gate depends on. It
+# changes nothing outside this repository and needs no credentials.
+
+set -eu
+
+REPO_ROOT=$(git rev-parse --show-toplevel)
+cd "${REPO_ROOT}"
+
+echo "HELIOS bootstrap"
+echo "  repository: ${REPO_ROOT}"
+
+# --- Git hooks -------------------------------------------------------------
+# core.hooksPath makes the committed hooks the active ones, so a fresh clone
+# is protected as soon as bootstrap runs - no copying into .git/hooks, nothing
+# to drift.
+git config core.hooksPath scripts/hooks
+chmod +x scripts/hooks/pre-commit
+echo "  hooks:      core.hooksPath -> scripts/hooks (pre-commit armed)"
+
+# --- Secret scanning -------------------------------------------------------
+if command -v gitleaks >/dev/null 2>&1; then
+    echo "  gitleaks:   $(gitleaks version 2>&1 | head -n 1)"
+else
+    echo "  gitleaks:   NOT FOUND" >&2
+    echo "" >&2
+    echo "gitleaks is required: this repository is public and every commit is" >&2
+    echo "scanned for secrets before it is created. Install gitleaks and re-run" >&2
+    echo "ops/bootstrap." >&2
+    exit 1
+fi
+
+if [ ! -f .gitleaks.toml ]; then
+    echo "  config:     .gitleaks.toml MISSING" >&2
+    exit 1
+fi
+echo "  config:     .gitleaks.toml"
+
+# --- Python ----------------------------------------------------------------
+if command -v python3 >/dev/null 2>&1; then
+    echo "  python:     $(python3 --version 2>&1)"
+else
+    echo "  python:     NOT FOUND (Python 3.11+ required)" >&2
+    exit 1
+fi
+
+echo ""
+echo "Bootstrap complete. Next:"
+echo "  python3 -m venv .venv && . .venv/bin/activate"
+echo "  pip install -r requirements-dev.txt"
+echo "  pytest"
+echo ""
+echo "Runtime configuration is external: set the HELIOS_* environment"
+echo "variables, or point HELIOS_CONFIG_FILE at a TOML file. See"
+echo "config/helios.example.toml. Never commit a real configuration file"
+echo "containing credentials."

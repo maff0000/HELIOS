@@ -1,0 +1,39 @@
+# Atomic strategy package: golden/death cross on the CONTEXT timeframe.
+#
+# This package binds CONTEXT to H4 *for itself*. Another package may bind
+# CONTEXT to D1; HELIOS has no global opinion.
+schema_version: helios.strategy_package/1.0.0
+kind: ATOMIC
+identity:
+  strategy_id: golden_cross
+  strategy_version: 1.0.0
+metadata:
+  title: Golden / death cross
+  description: >-
+    ema_50 crossing ema_200 on the context timeframe. Both indicators are
+    consumed as HERMES facts; HELIOS does not compute them.
+  authored_by: HSA
+  authored_at_utc: 2026-01-02T09:00:00Z
+inputs:
+  - role: CONTEXT
+    timeframe: H4
+    lookback: 2
+    required_fields: [close, ema_50, ema_200]
+parameters:
+  min_separation:
+    type: DECIMAL
+    value: 0.25
+    minimum: 0
+    maximum: 100
+    description: Minimum absolute ema_50/ema_200 separation for the cross to count.
+direction:
+  mode: DIRECTIONAL
+  resolution: STRATEGY_LOCAL
+timing:
+  evaluate_on: CLOSED_FRAME
+persistence:
+  min_matched_frames: 1
+  weakening_enabled: true
+expiry:
+  mode: FRAMES
+  frames: 6

@@ -1,0 +1,39 @@
+# BROKEN: an unordered ALL chain that nevertheless declares sequence_index,
+# which states two contradictory things about the same chain.
+schema_version: helios.strategy_package/1.0.0
+kind: CHAIN
+identity:
+  strategy_id: broken_all
+  strategy_version: 1.0.0
+metadata:
+  title: Broken ALL chain
+  description: ALL chain carrying a sequence ordering.
+  authored_by: HSA
+  authored_at_utc: 2026-01-02T11:00:00Z
+inputs: []
+parameters: {}
+direction:
+  mode: DIRECTIONAL
+  resolution: FROM_COMPONENTS
+  component_relationship: SAME
+timing:
+  evaluate_on: CLOSED_FRAME
+persistence:
+  min_matched_frames: 1
+  weakening_enabled: false
+expiry:
+  mode: NEVER
+chain:
+  primitive: ALL
+  explanation_required: true
+  components:
+    - strategy_id: golden_cross
+      strategy_version: 1.0.0
+      sequence_index: 0
+      direction_relationship: SAME
+      required_states: [MATCHED]
+    - strategy_id: range_breakout
+      strategy_version: 1.0.0
+      sequence_index: 1
+      direction_relationship: SAME
+      required_states: [MATCHED]
