@@ -18,3 +18,7 @@ D1 = 172800
 
 [hermes]
 accepted_schema_versions = ["hermes.market_fact/1.0.0"]
+
+[publication]
+# Nothing durable is published by the suite.
+sink = "MEMORY"

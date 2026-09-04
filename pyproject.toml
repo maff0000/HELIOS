@@ -18,6 +18,15 @@ dev = ["pytest>=8,<10"]
 [tool.setuptools.packages.find]
 include = ["helios*"]
 
+# The reference strategy packages are package DATA, not source. `packages.find`
+# discovers importable packages only, so `helios/strategies/packages/` — a data
+# directory with no `__init__.py` — is invisible to it and the YAML files would
+# be absent from any built distribution. `helios.strategies.catalogue`
+# resolves REFERENCE_PACKAGE_DIRECTORY relative to its own module file, so in
+# an installed layout the directory would simply not be there.
+[tool.setuptools.package-data]
+"helios.strategies" = ["packages/*.yaml"]
+
 [tool.pytest.ini_options]
 minversion = "8.0"
 testpaths = ["tests"]

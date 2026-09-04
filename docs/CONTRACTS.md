@@ -135,13 +135,13 @@ ran out.
 ### 2.1 Legal transitions
 
 ```
-DORMANT   -> DORMANT, FORMING, MATCHED
+DORMANT   -> DORMANT, FORMING, MATCHED, INVALID
 FORMING   -> FORMING, MATCHED, DORMANT, INVALID, EXPIRED
 MATCHED   -> MATCHED, ACTIVE, WEAKENING, INVALID, EXPIRED
 ACTIVE    -> ACTIVE, WEAKENING, INVALID, EXPIRED
 WEAKENING -> WEAKENING, ACTIVE, INVALID, EXPIRED
 INVALID   -> INVALID, DORMANT
-EXPIRED   -> EXPIRED, DORMANT
+EXPIRED   -> EXPIRED, DORMANT, INVALID
 ```
 
 Rationale for the non-obvious edges:
@@ -156,6 +156,21 @@ Rationale for the non-obvious edges:
 * **`WEAKENING -> ACTIVE` is legal, `WEAKENING -> MATCHED` is not.** Recovery
   is expected; re-firing the match edge would misreport a match that already
   happened.
+* **Every state may reach `INVALID`**, including `DORMANT` and `EXPIRED`.
+  `INVALID` is the model's word for "this state is void", and a strategy whose
+  *evaluation itself* failed is void whatever it was doing beforehand. A
+  strategy that has never matched but that raised is exactly as invalid as one
+  whose match broke; republishing `DORMANT` would falsely assert "we evaluated
+  and nothing holds", and republishing `EXPIRED` would falsely assert "time ran
+  out", about an evaluation that never happened. `DORMANT` and `EXPIRED` are
+  the only two states a condition-driven evaluation never invalidates from, so
+  these two edges exist for the containment path in
+  `helios/strategies/evaluation.py` — which is validated against this table
+  like every other transition, so no code path routes around it.
+* **Reaching `INVALID` is not rearming.** `DORMANT` remains the only
+  non-resolved successor of `INVALID` and `EXPIRED`: a resolved occurrence
+  still cannot go straight back to `FORMING`, `MATCHED`, `ACTIVE` or
+  `WEAKENING`.
 
 Anything outside the table raises `IllegalStateTransitionError`. Every
 transition carries a non-empty `reason`.
@@ -240,6 +255,20 @@ explicit architecture authority before introducing it.
 
 `from_canonical_json()` round-trips exactly and reads every JSON number as a
 `Decimal`.
+
+**The emitted digits depend only on the value.** `canonical_decimal()` performs
+no decimal *operation*: it reads the value's own `(sign, digits, exponent)`
+triple, drops the trailing zeros of the fractional part and rebuilds the
+decimal exactly. Construction from a tuple applies no context, and
+`format(value, "f")` with no precision neither rounds nor consults one. This
+matters because the obvious implementation does not hold: `Decimal.normalize()`
+is an operation and is rounded by whatever context the process has installed,
+so under a `prec=4` context it emits `0.8462` where the default context emits
+`0.846154`. Published bytes must not depend on ambient state HELIOS does not
+control — any library or host code installing its own context would otherwise
+silently change what FALCON receives.
+`tests/test_serialisation.py` asserts the published bytes are unchanged under
+hostile contexts (`prec=4`, `prec=200`, and non-default roundings).
 
 ### 3.4 Immutability
 
@@ -415,10 +444,14 @@ All inherit `HeliosError` and carry a structured `context` mapping.
 
 ---
 
-## 9. What this work item deliberately does not contain
+## 9. What HELIOS deliberately does not contain
 
-The atomic strategies themselves, the composition engine and the Docker runtime
-are separate work items. WI-1 defines the vocabulary they consume. Also absent
-by design, and enforced: NEO decision logic, TRON execution, account risk,
-broker integration, a backtesting engine, strategy auto-tuning, a dashboard, an
-evidence store, and any reusable indicator library.
+The atomic strategy framework and the six proof atoms (`docs/ATOMS.md`), the
+composition engine (`docs/COMPOSITION.md`) and the publication boundary
+(`docs/INTEGRATION.md`) are built and consume the vocabulary defined here. The
+Docker runtime is a separate work item and is not built yet.
+
+Absent by design, and enforced: NEO decision logic, TRON execution, account
+risk, broker integration, a backtesting engine, strategy auto-tuning, a
+dashboard, an evidence store (CER owns that), and any reusable indicator
+library (HERMES owns indicators).

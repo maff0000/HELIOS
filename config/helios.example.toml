@@ -32,5 +32,20 @@ allow_incomplete_frames = false
 # rather than guessing at unfamiliar fields.
 accepted_schema_versions = ["hermes.market_fact/1.0.0"]
 
+[publication]
+# Where normalised strategy state is published for FALCON, as canonical JSON
+# lines. One of:
+#   STREAM  - write to a standard stream; set `stream` to STDOUT or STDERR.
+#             Docker-first deployments collect the stream.
+#   FILE    - append to a file; set `path`.
+#   MEMORY  - keep payloads in memory. Dry runs; nothing durable is published.
+# There is deliberately no network sink and no state service.
+#
+# A setting belonging to a different sink is refused rather than ignored, so
+# `path` below stays commented out while the sink is STREAM.
+sink = "STREAM"
+stream = "STDOUT"
+# path = "/var/lib/helios/strategy_state.jsonl"
+
 # [strategies]
 # package_dir = "/etc/helios/strategies"

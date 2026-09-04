@@ -26,6 +26,7 @@ from typing import Any
 import pytest
 
 from helios.contracts import (
+    LIVE_STATES,
     Direction,
     MarketFactWindow,
     StrategyState,
@@ -408,6 +409,56 @@ def test_containment_preserves_the_history_of_what_just_ended(policy):
     assert envelope.direction is Direction.LONG
     assert envelope.first_matched_at_utc == live.first_matched_at_utc
     assert envelope.active_since_utc is None
+
+
+def _previous_envelope(fixture, state: StrategyState) -> StrategyStateEnvelope:
+    """A prior published envelope in ``state``, with a plausible history."""
+    matched = state is not StrategyState.DORMANT and state is not StrategyState.FORMING
+    return StrategyStateEnvelope(
+        kind="ATOMIC",
+        strategy_id="deliberate_failure",
+        strategy_version="1.0.0",
+        instrument=fixture.instrument,
+        timeframe="H4",
+        semantic_role="CONTEXT",
+        state=state,
+        direction=Direction.LONG,
+        first_matched_at_utc="2026-01-06T04:00:00Z" if matched else None,
+        last_matched_at_utc="2026-01-06T16:00:00Z" if matched else None,
+        active_since_utc="2026-01-06T04:00:00Z" if state in LIVE_STATES else None,
+        last_evaluated_at_utc="2026-01-06T16:00:00Z",
+        validity={},
+        inputs=(),
+    )
+
+
+@pytest.mark.parametrize(
+    "previous_state", list(StrategyState), ids=lambda state: state.value
+)
+def test_containment_is_validated_against_the_transition_table(policy, previous_state):
+    """A failure is contained from EVERY prior state, table included.
+
+    The containment envelope goes through ``transition()`` like every other
+    transition rather than around it. That only works because every state can
+    reach ``INVALID``: if any could not, the validation would raise from inside
+    the failure handler, escape ``evaluate_sequentially`` and take the failing
+    strategy's siblings with it — the exact opposite of containment. This
+    parametrisation is what keeps that property honest.
+    """
+    registry = _registry_with_failure()
+    broken = registry.build(parse_strategy_package(FAILING_PACKAGE, origin="test"))
+    healthy = _atoms_over_one_instrument(registry)
+    fixture, _window = fixture_window("xau_usd_h4")
+    previous = {
+        "deliberate_failure@1.0.0": _previous_envelope(fixture, previous_state)
+    }
+    outcomes = evaluate_sequentially(
+        [broken] + healthy, _context_factory(healthy, policy, previous=previous)
+    )
+    assert outcomes[0].contained
+    assert outcomes[0].envelope.state is StrategyState.INVALID
+    assert not any(outcome.contained for outcome in outcomes[1:])
+    assert len(outcomes) == len(healthy) + 1
 
 
 def test_a_strategy_is_only_ever_handed_its_own_previous_envelope(policy):

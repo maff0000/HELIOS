@@ -26,8 +26,26 @@ from helios.publish import (
     StatePublisher,
     StreamSink,
     build_sink,
-    load_publication_config,
 )
+from helios.config import load_config
+from tests.conftest import COMPLETE_ENV
+
+#: Everything a HELIOS deployment needs EXCEPT its publication settings.
+#: ``load_config`` is the single configuration entry point, so a test about the
+#: publication layer still has to supply the rest of a valid deployment; the
+#: publication settings themselves are left entirely to each test.
+BASE_ENV = {
+    key: value
+    for key, value in COMPLETE_ENV.items()
+    if not key.startswith("HELIOS_PUBLICATION_")
+}
+
+
+def publication(environ=None, *, config_file=None):
+    """The configured publication destination, via the one entry point."""
+    return load_config(
+        {**BASE_ENV, **(environ or {})}, config_file=config_file
+    ).publication()
 
 
 @pytest.fixture(scope="module")
@@ -212,13 +230,14 @@ def test_the_publisher_closes_its_sink(envelope):
 
 
 def test_the_sink_is_never_chosen_in_source():
+    """No sink is defaulted anywhere: omitting it is a fatal, named problem."""
     with pytest.raises(ConfigurationError) as caught:
-        load_publication_config({})
-    assert "sink: required configuration is missing" in str(caught.value)
+        publication({})
+    assert "publication_sink: required configuration is missing" in str(caught.value)
 
 
 def test_the_environment_configures_a_file_sink(tmp_path):
-    config = load_publication_config(
+    config = publication(
         {
             "HELIOS_PUBLICATION_SINK": "file",
             "HELIOS_PUBLICATION_PATH": str(tmp_path / "helios.jsonl"),
@@ -234,7 +253,7 @@ def test_the_environment_configures_a_file_sink(tmp_path):
 
 
 def test_the_environment_configures_a_stream_sink():
-    config = load_publication_config(
+    config = publication(
         {"HELIOS_PUBLICATION_SINK": "STREAM", "HELIOS_PUBLICATION_STREAM": "stdout"}
     )
     assert (config.sink, config.stream) == (SINK_STREAM, "STDOUT")
@@ -251,7 +270,7 @@ def test_a_config_file_supplies_the_same_settings(tmp_path):
         f"path = \"{tmp_path / 'from-file.jsonl'}\"\n",
         encoding="utf-8",
     )
-    config = load_publication_config({}, config_file=config_file)
+    config = publication({}, config_file=config_file)
     assert config.sink == SINK_FILE
     assert config.path == tmp_path / "from-file.jsonl"
 
@@ -263,7 +282,7 @@ def test_the_environment_wins_over_the_config_file(tmp_path):
         "[publication]\nsink = \"FILE\"\npath = \"/nowhere/from-file.jsonl\"\n",
         encoding="utf-8",
     )
-    config = load_publication_config(
+    config = publication(
         {"HELIOS_PUBLICATION_SINK": "MEMORY"}, config_file=config_file
     )
     assert config.sink == SINK_MEMORY
@@ -272,7 +291,7 @@ def test_the_environment_wins_over_the_config_file(tmp_path):
 
 def test_an_unknown_sink_is_refused_by_name():
     with pytest.raises(ConfigurationError) as caught:
-        load_publication_config({"HELIOS_PUBLICATION_SINK": "HTTP"})
+        publication({"HELIOS_PUBLICATION_SINK": "HTTP"})
     message = str(caught.value)
     assert "HTTP" in message
     assert "FILE" in message
@@ -280,29 +299,29 @@ def test_an_unknown_sink_is_refused_by_name():
 
 def test_a_file_sink_without_a_destination_is_refused():
     with pytest.raises(ConfigurationError) as caught:
-        load_publication_config({"HELIOS_PUBLICATION_SINK": "FILE"})
-    assert "path: sink FILE requires a destination" in str(caught.value)
+        publication({"HELIOS_PUBLICATION_SINK": "FILE"})
+    assert "publication_path: sink FILE requires a destination" in str(caught.value)
 
 
 def test_a_stream_sink_without_a_destination_is_refused():
     with pytest.raises(ConfigurationError) as caught:
-        load_publication_config({"HELIOS_PUBLICATION_SINK": "STREAM"})
-    assert "stream: sink STREAM requires a destination" in str(caught.value)
+        publication({"HELIOS_PUBLICATION_SINK": "STREAM"})
+    assert "publication_stream: sink STREAM requires a destination" in str(caught.value)
 
 
 def test_settings_belonging_to_another_sink_are_refused():
     """Configuring something HELIOS is not doing is a contradiction, not extra."""
     with pytest.raises(ConfigurationError) as caught:
-        load_publication_config(
+        publication(
             {"HELIOS_PUBLICATION_SINK": "MEMORY", "HELIOS_PUBLICATION_PATH": "/tmp/x"}
         )
-    assert "path: meaningful only for sink FILE" in str(caught.value)
+    assert "publication_path: meaningful only for sink FILE" in str(caught.value)
 
 
 def test_every_problem_is_reported_at_once():
     """An operator fixes one deployment, not one restart at a time."""
     with pytest.raises(ConfigurationError) as caught:
-        load_publication_config(
+        publication(
             {"HELIOS_PUBLICATION_SINK": "FILE", "HELIOS_PUBLICATION_STREAM": "SYSLOG"}
         )
     problems = caught.value.context["problems"]
@@ -312,7 +331,7 @@ def test_every_problem_is_reported_at_once():
 
 def test_a_named_config_file_that_is_absent_is_fatal(tmp_path):
     with pytest.raises(ConfigurationError) as caught:
-        load_publication_config({}, config_file=tmp_path / "absent.toml")
+        publication({}, config_file=tmp_path / "absent.toml")
     assert "named but not found" in str(caught.value)
 
 
@@ -320,8 +339,38 @@ def test_a_malformed_config_file_is_fatal(tmp_path):
     config_file = tmp_path / "broken.toml"
     config_file.write_text("[publication\n", encoding="utf-8")
     with pytest.raises(ConfigurationError) as caught:
-        load_publication_config({}, config_file=config_file)
+        publication({}, config_file=config_file)
     assert "malformed configuration file" in str(caught.value)
+
+
+def test_publication_is_loaded_by_the_single_configuration_loader():
+    """One entry point, one precedence rule, one report of what is wrong.
+
+    Publication settings used to be read by a loader of their own. A single
+    load now reports a freshness problem and a publication problem together,
+    which is the point: an operator fixes one deployment rather than one
+    restart at a time.
+    """
+    with pytest.raises(ConfigurationError) as caught:
+        load_config(
+            {
+                **BASE_ENV,
+                "HELIOS_FRESHNESS_GRACE_SECONDS": "-5",
+                "HELIOS_PUBLICATION_SINK": "HTTP",
+            }
+        )
+    problems = caught.value.context["problems"]
+    assert any(item.startswith("freshness_grace_seconds:") for item in problems)
+    assert any(item.startswith("publication_sink:") for item in problems)
+    assert problems == sorted(problems)
+
+
+def test_the_config_file_is_read_once_for_every_setting(repo_root):
+    """The documented example configures freshness AND publication together."""
+    config = load_config({}, config_file=repo_root / "config" / "helios.example.toml")
+    assert config.publication().sink == SINK_STREAM
+    assert config.publication() == config.publication()
+    assert build_sink(config.publication()).__class__ is StreamSink
 
 
 def test_build_sink_requires_validated_configuration():
@@ -368,7 +417,7 @@ def test_an_overridden_setting_is_an_override_not_a_contradiction(tmp_path):
         "[publication]\nsink = \"FILE\"\npath = \"/var/lib/helios/state.jsonl\"\n",
         encoding="utf-8",
     )
-    config = load_publication_config(
+    config = publication(
         {"HELIOS_PUBLICATION_SINK": "MEMORY"}, config_file=config_file
     )
     assert (config.sink, config.path) == (SINK_MEMORY, None)
@@ -381,8 +430,8 @@ def test_a_contradiction_written_in_one_place_is_still_refused(tmp_path):
         encoding="utf-8",
     )
     with pytest.raises(ConfigurationError) as caught:
-        load_publication_config({}, config_file=config_file)
-    assert "path: meaningful only for sink FILE" in str(caught.value)
+        publication({}, config_file=config_file)
+    assert "publication_path: meaningful only for sink FILE" in str(caught.value)
 
 
 def test_the_environment_contradicting_the_file_is_refused(tmp_path):
@@ -390,8 +439,8 @@ def test_the_environment_contradicting_the_file_is_refused(tmp_path):
     config_file = tmp_path / "helios.toml"
     config_file.write_text("[publication]\nsink = \"MEMORY\"\n", encoding="utf-8")
     with pytest.raises(ConfigurationError) as caught:
-        load_publication_config(
+        publication(
             {"HELIOS_PUBLICATION_PATH": "/var/lib/helios/state.jsonl"},
             config_file=config_file,
         )
-    assert "path: meaningful only for sink FILE" in str(caught.value)
+    assert "publication_path: meaningful only for sink FILE" in str(caught.value)

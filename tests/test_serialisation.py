@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import decimal
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
@@ -98,3 +99,67 @@ def test_output_has_no_insignificant_whitespace():
 def test_loading_requires_text():
     with pytest.raises(SerialisationError):
         canonical_loads(b"{}")  # type: ignore[arg-type]
+
+
+# ------------------------------------------- the installed decimal context
+
+#: Contexts a host application could plausibly have installed. Each one changes
+#: what ``Decimal.normalize()`` returns, which is why canonical serialisation
+#: must not use an operation at all.
+HOSTILE_CONTEXTS = (
+    decimal.Context(prec=4),
+    decimal.Context(prec=1),
+    decimal.Context(prec=200),
+    decimal.Context(prec=6, rounding=decimal.ROUND_FLOOR),
+    decimal.Context(prec=9, rounding=decimal.ROUND_CEILING),
+)
+
+#: Values chosen to exercise every branch: trailing fractional zeros, integer
+#: zeros that are significant, signs, zero in several spellings, exponent
+#: notation, and a coefficient far longer than any plausible context precision.
+DECIMAL_SAMPLES = (
+    Decimal("0.846153846153846153846153846153846"),
+    Decimal("5.50") / Decimal(1),
+    Decimal("2400.00"),
+    Decimal("1.50"),
+    Decimal("-3.10"),
+    Decimal("0.000"),
+    Decimal("-0"),
+    Decimal("1E+2"),
+    Decimal("1E-30"),
+    Decimal("123456789012345678901234567890.1230"),
+)
+
+
+def test_a_hostile_decimal_context_cannot_change_the_emitted_digits():
+    """Published bytes must depend on the value alone, never on ambient state.
+
+    ``Decimal.normalize()`` would fail this: it is an operation, so a
+    ``prec=4`` context rounds ``0.846153...`` to ``0.8462`` while the default
+    context emits ``0.846154``. Whatever context a host application installs,
+    FALCON must receive the same bytes.
+    """
+    baseline = [canonical_decimal(value) for value in DECIMAL_SAMPLES]
+    assert baseline[0] == "0.846153846153846153846153846153846"
+    for context in HOSTILE_CONTEXTS:
+        with decimal.localcontext(context):
+            assert [canonical_decimal(value) for value in DECIMAL_SAMPLES] == baseline
+
+
+def test_a_hostile_decimal_context_cannot_change_canonical_json():
+    payload = {"strength": Decimal("0.846153846153846153846153846153846"),
+               "close": Decimal("2400.00"),
+               "nested": [Decimal("1.50"), {"atr": Decimal("0.000")}]}
+    baseline = canonical_dumps(payload)
+    assert "0.846153846153846153846153846153846" in baseline
+    for context in HOSTILE_CONTEXTS:
+        with decimal.localcontext(context):
+            assert canonical_dumps(payload) == baseline
+
+
+def test_the_guard_would_actually_catch_the_defect_it_was_written_for():
+    """Proof the hostile contexts are genuinely hostile, not decorative."""
+    value = Decimal("0.846153846153846153846153846153846")
+    with decimal.localcontext(decimal.Context(prec=4)):
+        assert format(value.normalize(), "f") == "0.8462"
+        assert canonical_decimal(value) != format(value.normalize(), "f")

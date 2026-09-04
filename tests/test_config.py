@@ -15,15 +15,8 @@ from helios.config import (
 )
 from helios.contracts import Timeframe
 from helios.errors import ConfigurationError
+from tests.conftest import COMPLETE_ENV
 
-COMPLETE_ENV = {
-    "HELIOS_ENVIRONMENT": "test",
-    "HELIOS_LOG_LEVEL": "INFO",
-    "HELIOS_FRESHNESS_MAX_AGE_MULTIPLIER": "2.0",
-    "HELIOS_FRESHNESS_GRACE_SECONDS": "30",
-    "HELIOS_FRESHNESS_ALLOW_INCOMPLETE_FRAMES": "false",
-    "HELIOS_ACCEPTED_HERMES_SCHEMA_VERSIONS": "hermes.market_fact/1.0.0",
-}
 
 
 def test_an_empty_environment_fails_and_reports_every_problem_at_once():

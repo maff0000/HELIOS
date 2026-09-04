@@ -62,6 +62,8 @@ def test_every_state_is_reachable_from_dormant():
         (StrategyState.ACTIVE, StrategyState.EXPIRED),
         (StrategyState.INVALID, StrategyState.DORMANT),
         (StrategyState.EXPIRED, StrategyState.DORMANT),
+        (StrategyState.DORMANT, StrategyState.INVALID),
+        (StrategyState.EXPIRED, StrategyState.INVALID),
     ],
 )
 def test_documented_transitions_are_legal(current, proposed):
@@ -98,8 +100,31 @@ def test_a_matched_occurrence_must_resolve_before_rearming():
 
 
 def test_resolved_states_rearm_only_through_dormant():
+    """DORMANT is the only NON-resolved successor a resolved state has.
+
+    Reaching the other resolved state is not rearming: it re-resolves. What the
+    table must forbid is going straight back to FORMING/MATCHED/ACTIVE/
+    WEAKENING without passing through DORMANT.
+    """
     for state in RESOLVED_STATES:
-        assert legal_successors(state) == frozenset({state, StrategyState.DORMANT})
+        assert legal_successors(state) - RESOLVED_STATES == frozenset(
+            {StrategyState.DORMANT}
+        )
+        assert state in legal_successors(state)
+
+
+def test_every_state_can_become_invalid():
+    """INVALID is the model's word for "this state is void".
+
+    A strategy whose *evaluation itself* failed is void whatever it was doing
+    beforehand, and the containment path in ``helios/strategies/evaluation.py``
+    is validated against this table like every other transition. If any state
+    could not reach INVALID, containment would have to route around the table
+    — or raise out of the handler and take the failing strategy's siblings with
+    it.
+    """
+    for state in StrategyState:
+        assert is_legal_transition(state, StrategyState.INVALID), state
 
 
 def test_transition_requires_a_reason():

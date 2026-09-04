@@ -1,9 +1,16 @@
-"""External runtime configuration.
+"""External runtime configuration. The single entry point.
 
 There are no configuration values in HELIOS source. Every operational number —
 freshness multipliers, grace periods, accepted upstream schema versions, log
-level — is supplied from the environment or from a TOML file named by
-``HELIOS_CONFIG_FILE``, and validated at startup.
+level, and where strategy state is published — is supplied from the
+environment or from a TOML file named by ``HELIOS_CONFIG_FILE``, and validated
+at startup.
+
+:func:`load_config` is the ONLY configuration entry point. Publication settings
+are loaded here alongside the rest rather than by a second loader of their own:
+one entry point means one precedence rule, one file read, and — because every
+problem lands in one list — one error telling an operator everything that is
+wrong with a deployment.
 
 Missing or invalid required configuration is fatal and loud: :func:`load_config`
 reports *every* problem it found at once, so an operator fixes one deployment
@@ -28,6 +35,14 @@ from typing import Any, Mapping, Optional
 from helios.contracts.freshness import FreshnessPolicy
 from helios.contracts.timeframe import Timeframe
 from helios.errors import ConfigurationError
+from helios.publish.config import (
+    SINK_FILE,
+    SINK_MEMORY,
+    SINK_STREAM,
+    SUPPORTED_SINKS,
+    SUPPORTED_STREAMS,
+    PublicationConfig,
+)
 
 #: Environment variable naming the optional TOML configuration file.
 CONFIG_FILE_ENV_VAR = "HELIOS_CONFIG_FILE"
@@ -61,6 +76,7 @@ REQUIRED_SETTINGS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
         "HELIOS_ACCEPTED_HERMES_SCHEMA_VERSIONS",
         ("hermes", "accepted_schema_versions"),
     ),
+    ("publication_sink", "HELIOS_PUBLICATION_SINK", ("publication", "sink")),
 )
 
 #: Optional settings, same shape.
@@ -71,7 +87,16 @@ OPTIONAL_SETTINGS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
         ("freshness", "overrides"),
     ),
     ("strategy_package_dir", "HELIOS_STRATEGY_PACKAGE_DIR", ("strategies", "package_dir")),
+    ("publication_path", "HELIOS_PUBLICATION_PATH", ("publication", "path")),
+    ("publication_stream", "HELIOS_PUBLICATION_STREAM", ("publication", "stream")),
 )
+
+#: Precedence of the layer a setting came from. The environment wins over the
+#: file, so one container image runs in every environment and only the injected
+#: environment differs.
+FROM_NOWHERE = 0
+FROM_FILE = 1
+FROM_ENVIRONMENT = 2
 
 
 @dataclass(frozen=True, slots=True)
@@ -86,6 +111,17 @@ class HeliosConfig:
     accepted_hermes_schema_versions: tuple[str, ...]
     freshness_overrides: Mapping[Timeframe, timedelta]
     strategy_package_dir: Optional[Path]
+    publication_sink: str
+    publication_path: Optional[Path]
+    publication_stream: Optional[str]
+
+    def publication(self) -> PublicationConfig:
+        """The publication destination this deployment was configured with."""
+        return PublicationConfig(
+            sink=self.publication_sink,
+            path=self.publication_path,
+            stream=self.publication_stream,
+        )
 
     def freshness_policy(self) -> FreshnessPolicy:
         """Build the freshness policy this deployment was configured with."""
@@ -205,6 +241,78 @@ def _as_overrides(
     return MappingProxyType(result)
 
 
+def _resolve_publication(
+    raw: Mapping[str, Any], source: Mapping[str, int], problems: list[str]
+) -> tuple[Optional[str], Optional[Path], Optional[str]]:
+    """Validate the publication settings, appending to the shared problem list.
+
+    A setting belonging to a DIFFERENT sink is normally a contradiction, not a
+    harmless extra: the operator believes they configured something HELIOS is
+    not doing, and quietly ignoring it is how a deployment ends up publishing
+    somewhere nobody is reading. The one exception is a setting a
+    higher-precedence layer has overridden away — a file describing a FILE
+    deployment, with the environment selecting MEMORY for a dry run, is an
+    override, not a mistake.
+    """
+    sink: Optional[str] = None
+    if raw["publication_sink"] is not None:
+        sink = str(raw["publication_sink"]).strip().upper()
+        if not sink:
+            sink = None
+        elif sink not in SUPPORTED_SINKS:
+            problems.append(
+                f"publication_sink: expected one of {list(SUPPORTED_SINKS)}, "
+                f"received {sink!r}"
+            )
+            sink = None
+
+    path: Optional[Path] = None
+    if raw["publication_path"] is not None and str(raw["publication_path"]).strip():
+        path = Path(str(raw["publication_path"]).strip())
+
+    stream: Optional[str] = None
+    if raw["publication_stream"] is not None and str(raw["publication_stream"]).strip():
+        stream = str(raw["publication_stream"]).strip().upper()
+        if stream not in SUPPORTED_STREAMS:
+            problems.append(
+                f"publication_stream: expected one of {list(SUPPORTED_STREAMS)}, "
+                f"received {stream!r}"
+            )
+            stream = None
+
+    def stray(attribute: str, message: str) -> None:
+        if source.get(attribute, FROM_NOWHERE) >= source.get(
+            "publication_sink", FROM_NOWHERE
+        ):
+            problems.append(message)
+
+    if sink == SINK_FILE:
+        if path is None:
+            problems.append(
+                "publication_path: sink FILE requires a destination "
+                "(set HELIOS_PUBLICATION_PATH or [publication] path)"
+            )
+        if stream is not None:
+            stray("publication_stream", "publication_stream: meaningful only for sink STREAM")
+    elif sink == SINK_STREAM:
+        if stream is None:
+            problems.append(
+                "publication_stream: sink STREAM requires a destination "
+                f"(set HELIOS_PUBLICATION_STREAM to one of {list(SUPPORTED_STREAMS)})"
+            )
+        if path is not None:
+            stray("publication_path", "publication_path: meaningful only for sink FILE")
+    elif sink == SINK_MEMORY:
+        if path is not None:
+            stray("publication_path", "publication_path: meaningful only for sink FILE")
+        if stream is not None:
+            stray("publication_stream", "publication_stream: meaningful only for sink STREAM")
+
+    # Only the settings this sink actually uses are carried forward, so a
+    # loaded configuration never describes a destination HELIOS is not using.
+    return sink, (path if sink == SINK_FILE else None), (stream if sink == SINK_STREAM else None)
+
+
 def load_config(
     environ: Optional[Mapping[str, str]] = None,
     *,
@@ -230,25 +338,29 @@ def load_config(
                 "malformed configuration file", config_file=str(path), detail=str(exc)
             ) from exc
 
-    def resolve(env_var: str, toml_path: tuple[str, ...]) -> Any:
+    def resolve(env_var: str, toml_path: tuple[str, ...]) -> tuple[Any, int]:
         # Environment wins over file: the container image is identical across
-        # environments and only the injected environment differs.
+        # environments and only the injected environment differs. The layer a
+        # value came from is reported too, because one rule needs it: a setting
+        # a higher-precedence layer overrode away is an override, not a mistake.
         if env_var in environ and str(environ[env_var]).strip() != "":
-            return environ[env_var]
-        return _lookup_toml(document, toml_path)
+            return environ[env_var], FROM_ENVIRONMENT
+        value = _lookup_toml(document, toml_path)
+        return value, (FROM_FILE if value is not None else FROM_NOWHERE)
 
     raw: dict[str, Any] = {}
+    source: dict[str, int] = {}
     for attribute, env_var, toml_path in REQUIRED_SETTINGS:
-        value = resolve(env_var, toml_path)
-        if value is None:
+        value, layer = resolve(env_var, toml_path)
+        if value is None or not str(value).strip():
             problems.append(
                 f"{attribute}: required configuration is missing "
                 f"(set {env_var} or [{'.'.join(toml_path[:-1]) or 'root'}] "
                 f"{toml_path[-1]} in the config file)"
             )
-        raw[attribute] = value
+        raw[attribute], source[attribute] = value, layer
     for attribute, env_var, toml_path in OPTIONAL_SETTINGS:
-        raw[attribute] = resolve(env_var, toml_path)
+        raw[attribute], source[attribute] = resolve(env_var, toml_path)
 
     environment = None
     if raw["environment"] is not None:
@@ -305,6 +417,10 @@ def load_config(
         raw["freshness_overrides"], name="freshness_overrides", problems=problems
     )
 
+    publication_sink, publication_path, publication_stream = _resolve_publication(
+        raw, source, problems
+    )
+
     package_dir: Optional[Path] = None
     if raw["strategy_package_dir"] is not None:
         package_dir = Path(str(raw["strategy_package_dir"]))
@@ -320,6 +436,7 @@ def load_config(
 
     assert environment and log_level and multiplier and accepted is not None
     assert grace is not None and allow_incomplete is not None
+    assert publication_sink is not None
     return HeliosConfig(
         environment=environment,
         log_level=log_level,
@@ -329,4 +446,7 @@ def load_config(
         accepted_hermes_schema_versions=accepted,
         freshness_overrides=overrides,
         strategy_package_dir=package_dir,
+        publication_sink=publication_sink,
+        publication_path=publication_path,
+        publication_stream=publication_stream,
     )

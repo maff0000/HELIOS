@@ -10,8 +10,10 @@ chosen by external configuration. This package owns:
   once, deterministically, and hands the bytes to the sink.
 * :mod:`helios.publish.negotiation` — the schema-version rule a consumer must
   implement: refuse an unrecognised ``schema_version`` rather than interpret it.
-* :mod:`helios.publish.config` — the external configuration that decides the
-  destination. Nothing is defaulted in source.
+* :mod:`helios.publish.config` — what the destination can be, and how a
+  validated choice becomes a sink. Nothing is defaulted in source, and nothing
+  is loaded here: :func:`helios.config.load_config` is the single
+  configuration entry point.
 * :mod:`helios.publish.schema` — the published JSON Schema FALCON validates
   against, generated from the model and checked in under ``docs/schema/``.
 """
@@ -24,7 +26,6 @@ from helios.publish.config import (
     SUPPORTED_STREAMS,
     PublicationConfig,
     build_sink,
-    load_publication_config,
 )
 from helios.publish.negotiation import (
     ENVELOPE_SCHEMA_NAMESPACE,
@@ -73,7 +74,6 @@ __all__ = [
     "StreamSink",
     "accept_payload",
     "build_sink",
-    "load_publication_config",
     "negotiate_schema_version",
     "published_schema",
     "read_schema_version",

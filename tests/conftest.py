@@ -33,6 +33,19 @@ PACKAGE_ROOT = REPO_ROOT / "fixtures" / "strategy_packages"
 
 FACT_SCHEMA_VERSION = "hermes.market_fact/1.0.0"
 
+#: A complete HELIOS environment: every required setting and nothing more.
+#: Shared because ``load_config`` is the single configuration entry point, so
+#: any test exercising ONE area of configuration must still supply the rest.
+COMPLETE_ENV = {
+    "HELIOS_ENVIRONMENT": "test",
+    "HELIOS_LOG_LEVEL": "INFO",
+    "HELIOS_FRESHNESS_MAX_AGE_MULTIPLIER": "2.0",
+    "HELIOS_FRESHNESS_GRACE_SECONDS": "30",
+    "HELIOS_FRESHNESS_ALLOW_INCOMPLETE_FRAMES": "false",
+    "HELIOS_ACCEPTED_HERMES_SCHEMA_VERSIONS": "hermes.market_fact/1.0.0",
+    "HELIOS_PUBLICATION_SINK": "MEMORY",
+}
+
 
 @pytest.fixture(scope="session")
 def repo_root() -> Path:

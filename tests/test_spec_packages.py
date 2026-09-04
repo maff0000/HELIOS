@@ -41,9 +41,29 @@ def test_every_valid_package_loads(valid_dir):
         "golden_cross@1.0.0",
         "range_breakout@1.0.0",
         "rejection_wick@1.0.0",
+        "swing_proximity@1.0.0",
         "gold_context_trigger@1.0.0",
         "gold_staged_sequence@1.0.0",
     }
+
+
+def test_the_two_swing_proximity_files_describe_one_definition(valid_dir):
+    """A promoted (strategy_id, strategy_version) is immutable.
+
+    ``swing_proximity@1.0.0`` is checked in twice on purpose: once as the
+    LOCATION component the valid fixture set needs to resolve on its own, and
+    once as the reference package shipped beside the code. Two files claiming
+    one promoted version must describe one strategy, or published state would
+    not be reproducible — so they are held to that here rather than left to
+    drift.
+    """
+    from helios.strategies.catalogue import REFERENCE_PACKAGE_DIRECTORY
+
+    assert load_strategy_package(
+        valid_dir / "swing_proximity.atomic.yaml"
+    ) == load_strategy_package(
+        REFERENCE_PACKAGE_DIRECTORY / "swing_proximity.atomic.yaml"
+    )
 
 
 def test_yaml_and_json_are_both_accepted(valid_dir):

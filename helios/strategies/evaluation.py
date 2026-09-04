@@ -21,10 +21,10 @@ A note on the contained failure envelope. ``INVALID`` is the contract's word
 for "this state is void", and it is what a failed evaluation must publish: the
 alternative, ``DORMANT``, would assert "evaluated, nothing holds" when in fact
 nothing was evaluated — a silent default of exactly the kind the PID forbids.
-A containment envelope is therefore published without consulting the legal
-transition table, because an evaluation failure is not a state change of the
-strategy's condition; the table governs condition-driven transitions, which is
-all any strategy's own evaluation can produce.
+The containment envelope goes through
+:func:`helios.contracts.state.transition` like every other transition. Every
+state can therefore reach ``INVALID``, which is what the state model says
+``INVALID`` means; no code path routes around the validation table.
 """
 
 from __future__ import annotations
@@ -43,7 +43,7 @@ from helios.contracts.output import (
     StrategyStateEnvelope,
     Validity,
 )
-from helios.contracts.state import Direction, StrategyState
+from helios.contracts.state import Direction, StrategyState, transition
 from helios.contracts.window import MarketFactWindow
 from helios.protocols import EvaluationContext, StrategyEvaluator
 
@@ -192,10 +192,20 @@ def _void_envelope(
             last_matched_at_utc=previous.last_matched_at_utc,
             active_since_utc=previous.active_since_utc,
         )
+    reason = "the strategy raised during evaluation; no state can be asserted"
+    if previous is not None:
+        # Validated like every other transition. Containment does not get its
+        # own private path around the table: a table some code bypasses is
+        # worse than no table, because it reads as enforced.
+        transition(
+            previous.state,
+            StrategyState.INVALID,
+            at_utc=context.evaluated_at_utc,
+            reason=reason,
+        )
     lifecycle = advance_lifecycle(
         previous_lifecycle, StrategyState.INVALID, context.evaluated_at_utc
     )
-    reason = "the strategy raised during evaluation; no state can be asserted"
     evidence: dict[str, Any] = {FAILURE_KEY: type(error).__name__}
     return StrategyStateEnvelope.with_lifecycle(
         lifecycle,

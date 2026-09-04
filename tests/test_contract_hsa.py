@@ -50,6 +50,26 @@ def test_a_realistic_hsa_handoff_loads_and_resolves(bundle):
     assert len(bundle.chains) == 2
 
 
+def test_every_checked_in_valid_package_set_resolves_as_a_handoff(request):
+    """The checked-in "valid" fixture set must be a genuinely valid handoff.
+
+    Loading a package proves it parses. It does NOT prove the set is coherent:
+    a chain naming a component nobody checked in loads perfectly and then
+    cannot run. This directory shipped in exactly that state — a SEQUENCE chain
+    named ``swing_proximity@1.0.0`` while the directory held no such package —
+    so the resolver, not the loader, is what guards it now.
+    """
+    valid_dir = request.config.rootpath / "fixtures" / "strategy_packages" / "valid"
+    bundle = load_handoff(valid_dir)
+    chains = bundle.chains
+    assert chains, "the valid fixture set must contain at least one chain to resolve"
+    for chain_package in chains:
+        assert chain_package.chain is not None
+        for component in chain_package.chain.components:
+            held = bundle.get(f"{component.strategy_id}@{component.strategy_version}")
+            assert held.kind is PackageKind.ATOMIC
+
+
 def test_every_chain_component_resolves_to_an_atomic_package_that_is_present(bundle):
     for chain_package in bundle.chains:
         assert chain_package.chain is not None

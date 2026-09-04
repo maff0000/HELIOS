@@ -21,21 +21,27 @@ every identifier, literal and fixture value in the tree against
 carries no such field, and checks the evaluation context exposes no channel
 through which downstream activity could reach a strategy.
 
-## Current state — WI-1: contracts and domain kernel
+## Current state
 
-This work item defines the vocabulary every later work item consumes:
+Built and tested:
 
-* HERMES-compatible market-fact input contract, with explicit freshness and
-  validity rules;
-* the strategy state model and its legal transitions;
-* the normalised output contract FALCON consumes, with deterministic JSON;
-* CER-compatible strategy identity and version immutability;
+* the contract kernel — HERMES-compatible market-fact input with explicit
+  freshness and validity rules, the strategy state model and its legal
+  transitions, the normalised output contract FALCON consumes with
+  deterministic JSON, CER-compatible identity and version immutability;
 * the HSA-targetable strategy package format, its loader and its JSON Schema;
-* canonical HERMES fixtures, including deliberately malformed and stale ones;
+* the atomic strategy framework and six proof atoms;
+* the composition engine — `ALL`, `ANY`, `SEQUENCE` and `CONTEXT_TRIGGER`
+  chains over normalised component output, with provenance preserved;
+* the FALCON publication boundary — canonical JSON lines to a file, a stream or
+  memory, with schema-version negotiation;
+* the HERMES, HSA and CER boundary contracts, with fixtures for each;
 * external configuration and structured UTC logging.
 
-The atomic strategies, the composition engine and the Docker runtime are
-separate work items.
+Not built yet: the Docker runtime. Absent by design: NEO decision logic, TRON
+execution, account risk, broker integration, backtesting, strategy auto-tuning,
+a dashboard, an evidence store (CER owns that) and any reusable indicator
+library (HERMES owns indicators).
 
 ## Getting started
 
@@ -56,16 +62,27 @@ it finds any.
 
 There are no configuration values in source. Supply `HELIOS_*` environment
 variables or point `HELIOS_CONFIG_FILE` at a TOML file; the environment wins
-over the file. Configuration is validated at startup and every problem is
-reported at once. See [`config/helios.example.toml`](config/helios.example.toml).
+over the file. `helios.config.load_config()` is the single entry point: it
+validates everything at startup — freshness, logging, accepted upstream schema
+versions and the publication destination — and reports every problem it found
+in one error. See [`config/helios.example.toml`](config/helios.example.toml).
 
 ## Documentation
 
-* [`docs/CONTRACTS.md`](docs/CONTRACTS.md) — the integration reference for HSA,
-  FALCON and CER: input contract, state model, output contract, identity
+* [`docs/CONTRACTS.md`](docs/CONTRACTS.md) — the contract reference: input
+  contract, state model and legal transitions, output contract, identity
   semantics, strategy package format.
-* [`docs/FIXTURES.md`](docs/FIXTURES.md) — the fixture format and what each
-  fixture proves.
+* [`docs/INTEGRATION.md`](docs/INTEGRATION.md) — the integration reference for
+  FALCON, HERMES, HSA and CER: what HELIOS publishes, what it consumes, how a
+  handoff resolves, and where the bytes go.
+* [`docs/ATOMS.md`](docs/ATOMS.md) — the atomic strategy framework, the six
+  proof atoms and how failure is contained.
+* [`docs/COMPOSITION.md`](docs/COMPOSITION.md) — the chain engine: the four
+  primitives, direction and timing semantics, and chain provenance.
+* [`docs/FIXTURES.md`](docs/FIXTURES.md) — every checked-in fixture set and what
+  each one proves.
 * [`docs/schema/strategy_package.schema.json`](docs/schema/strategy_package.schema.json)
   — JSON Schema for strategy packages, generated from the model and
   drift-checked by a test.
+* [`docs/schema/strategy_state.schema.json`](docs/schema/strategy_state.schema.json)
+  — JSON Schema for the published envelope, generated the same way.

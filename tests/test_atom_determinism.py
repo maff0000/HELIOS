@@ -119,9 +119,9 @@ def test_an_ambient_decimal_context_cannot_change_a_derived_measure(policy):
     inherit the ambient context.
 
     Note the boundary: this asserts the DERIVED VALUES are context-independent.
-    Rendering them to canonical JSON is the contract layer's job, and
-    ``helios.contracts.serialisation.canonical_decimal`` normalises under
-    whatever context is installed — see the note in ``docs/ATOMS.md``.
+    Rendering them to canonical JSON is the contract layer's job and carries
+    the same guarantee separately — see
+    ``tests/test_serialisation.py::test_a_hostile_decimal_context_cannot_change_the_emitted_digits``.
     """
     baseline = [
         dict(envelope.evidence)

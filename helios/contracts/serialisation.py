@@ -11,7 +11,10 @@ Rules:
 * no insignificant whitespace;
 * instants are fixed-width ISO-8601 UTC ending in ``Z``;
 * decimals are emitted as normalised strings, never as binary floats, so no
-  precision is lost and no platform-specific float repr can leak in;
+  precision is lost and no platform-specific float repr can leak in. The
+  normalisation is arithmetic-free and reads only the value's own sign, digits
+  and exponent, so the emitted digits cannot be changed by whatever decimal
+  context happens to be installed in the process;
 * ``NaN``/``Infinity`` are rejected rather than emitted as invalid JSON;
 * ``None`` is preserved as ``null`` — an absent fact is published as absent,
   not omitted, so consumers never have to guess whether a field was dropped.
@@ -33,13 +36,35 @@ from helios.errors import SerialisationError
 
 
 def canonical_decimal(value: Decimal) -> str:
-    """Normalised, exact decimal text: ``2400.00`` -> ``"2400"``, ``1.50`` -> ``"1.5"``."""
+    """Normalised, exact decimal text: ``2400.00`` -> ``"2400"``, ``1.50`` -> ``"1.5"``.
+
+    Deliberately arithmetic-free. ``Decimal.normalize()`` is an *operation*, so
+    it is rounded by whatever decimal context the process has installed: under
+    a ``prec=4`` context it would emit ``0.8462`` where the default context
+    emits ``0.846154``, and the published bytes would then depend on ambient
+    state HELIOS does not control. Any library or host code installing its own
+    context would silently change what FALCON receives.
+
+    This reads the value's own ``(sign, digits, exponent)`` triple instead,
+    strips the trailing zeros of the fractional part, and rebuilds the decimal
+    exactly — construction from a tuple applies no context. The emitted digits
+    therefore depend only on the value.
+    """
     if not value.is_finite():
         raise SerialisationError("cannot serialise a non-finite decimal", value=str(value))
-    normalised = value.normalize()
-    if normalised == 0:
+    sign, digits, exponent = value.as_tuple()
+    if not any(digits):
+        # Every zero publishes as "0": 0, 0.00 and -0 are one value here.
         return "0"
-    return format(normalised, "f")
+    kept = list(digits)
+    # Only fractional trailing zeros are insignificant. 2400 keeps its zeros
+    # because they are integer places, not trailing precision.
+    while exponent < 0 and kept[-1] == 0:
+        kept.pop()
+        exponent += 1
+    # ``format(..., "f")`` with no precision neither rounds nor consults the
+    # context; it lays out the exact digits in positional notation.
+    return format(Decimal((sign, tuple(kept), exponent)), "f")
 
 
 def canonicalise(value: Any) -> Any:

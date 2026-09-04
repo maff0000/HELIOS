@@ -144,10 +144,13 @@ sink = "FILE"
 path = "/var/lib/helios/strategy_state.jsonl"
 ```
 
-No publication value is defaulted in source. The environment wins over the
-file, so one container image runs in every environment and only the injected
-environment differs. Missing or invalid configuration is fatal at startup and
-every problem is reported at once. A setting belonging to a *different* sink is
+No publication value is defaulted in source. These settings are loaded and
+validated by `helios.config.load_config()` — the single configuration entry
+point — alongside freshness, logging and the rest, and reached as
+`config.publication()`. The environment wins over the file, so one container
+image runs in every environment and only the injected environment differs.
+Missing or invalid configuration is fatal at startup and every problem, of any
+kind, is reported in one error. A setting belonging to a *different* sink is
 a problem too — quietly ignoring it is how a deployment ends up publishing
 somewhere nobody reads — unless a higher-precedence layer overrode it, which is
 an override rather than a mistake.

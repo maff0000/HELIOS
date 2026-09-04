@@ -1,0 +1,55 @@
+# Atomic strategy package: proximity to the swing high / swing low on the
+# LOCATION timeframe.
+#
+# This is the LOCATION component of gold_sequence.chain.yaml. The valid fixture
+# set is a self-contained handoff: every chain in this directory must resolve
+# against this directory alone, so the definition the chain names is checked in
+# here rather than borrowed from elsewhere.
+#
+# It is deliberately the SAME DEFINITION as the reference package shipped at
+# helios/strategies/packages/swing_proximity.atomic.yaml. A promoted
+# (strategy_id, strategy_version) is immutable, so two files claiming
+# swing_proximity@1.0.0 must describe one strategy or published state would not
+# be reproducible. tests/test_spec_packages.py holds the two to that.
+schema_version: helios.strategy_package/1.0.0
+kind: ATOMIC
+identity:
+  strategy_id: swing_proximity
+  strategy_version: 1.0.0
+metadata:
+  title: Swing proximity
+  description: >-
+    The close sits within a declared distance of the swing high or swing low of
+    the declared lookback. LONG denotes the upper extreme and SHORT the lower;
+    both are statements of location, not of intent.
+  authored_by: FORGE
+  authored_at_utc: 2026-01-02T09:15:00Z
+inputs:
+  - role: LOCATION
+    timeframe: H1
+    lookback: 24
+    required_fields: [high, low, close]
+parameters:
+  lookback_bars:
+    type: INTEGER
+    value: 24
+    minimum: 2
+    maximum: 500
+    description: Bars the swing extremes are measured over.
+  max_distance:
+    type: DECIMAL
+    value: 10.00
+    minimum: 0
+    maximum: 1000
+    description: How near the close must be to a swing extreme, in price units.
+direction:
+  mode: DIRECTIONAL
+  resolution: STRATEGY_LOCAL
+timing:
+  evaluate_on: CLOSED_FRAME
+persistence:
+  min_matched_frames: 1
+  weakening_enabled: true
+expiry:
+  mode: FRAMES
+  frames: 12

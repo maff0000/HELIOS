@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import decimal
+
 from helios.contracts import (
     Direction,
     EnvelopeKind,
@@ -75,3 +77,23 @@ def test_windows_are_hashable_and_compare_by_value():
     assert hash(make_window(3)) == hash(make_window(3))
     assert make_window(3) == make_window(3)
     assert make_window(3) != make_window(4)
+
+
+def test_published_bytes_are_unchanged_under_a_hostile_decimal_context(policy):
+    """A host application's decimal context must not reach FALCON.
+
+    HELIOS does not own the process it runs in. If any library or host code
+    installs its own decimal context, the envelope HELIOS already holds must
+    still publish to the same bytes.
+    """
+    envelope = build(make_window(4), policy, utc("2026-01-05T16:01:00Z"))
+    baseline = envelope.to_canonical_json()
+    for precision, rounding in (
+        (1, decimal.ROUND_FLOOR),
+        (4, decimal.ROUND_HALF_EVEN),
+        (200, decimal.ROUND_CEILING),
+    ):
+        with decimal.localcontext() as context:
+            context.prec = precision
+            context.rounding = rounding
+            assert envelope.to_canonical_json() == baseline

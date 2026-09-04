@@ -1,17 +1,11 @@
-"""External configuration for the publication boundary.
+"""What the publication boundary can be configured to be.
 
 There are no publication defaults in source. Which sink HELIOS publishes
-through, and where it writes, come from the environment or from the same TOML
-file :mod:`helios.config` reads (``HELIOS_CONFIG_FILE``), under a
-``[publication]`` table. The environment wins over the file, so one container
-image runs in every environment and only the injected environment differs.
-
-Missing or invalid publication configuration is fatal and loud, and every
-problem found is reported at once rather than one restart at a time. A setting
-belonging to a sink other than the configured one is a problem too — quietly
-ignoring it is how a deployment ends up publishing somewhere nobody reads —
-unless a higher-precedence layer overrode it, which is an override rather than
-a mistake.
+through, and where it writes, are supplied externally and validated at startup
+by :func:`helios.config.load_config` — the single configuration entry point,
+and the single place that reports configuration problems. This module holds
+what those settings MEAN: the sinks that exist, the validated shape, and how a
+validated shape becomes a sink.
 
 Nothing here reads a secret. Publishing strategy state needs no credential:
 the destination is a file or an already-open stream. There is no network sink
@@ -31,18 +25,13 @@ environment variable                 TOML                        meaning
 
 from __future__ import annotations
 
-import os
 import sys
-import tomllib
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Mapping, Optional
+from typing import Optional
 
 from helios.errors import ConfigurationError
 from helios.publish.sink import FileSink, InMemorySink, PublicationSink, StreamSink
-
-#: Environment variable naming the shared TOML configuration file.
-CONFIG_FILE_ENV_VAR = "HELIOS_CONFIG_FILE"
 
 #: TOML table these settings live in.
 CONFIG_TABLE = "publication"
@@ -61,17 +50,6 @@ SUPPORTED_SINKS: tuple[str, ...] = (SINK_FILE, SINK_MEMORY, SINK_STREAM)
 #: Streams ``SINK_STREAM`` may be pointed at.
 SUPPORTED_STREAMS: tuple[str, ...] = ("STDERR", "STDOUT")
 
-#: Precedence of the layer a setting came from. The environment wins.
-_FROM_NOWHERE = 0
-_FROM_FILE = 1
-_FROM_ENVIRONMENT = 2
-
-_SETTINGS: tuple[tuple[str, str, str], ...] = (
-    ("sink", "HELIOS_PUBLICATION_SINK", "sink"),
-    ("path", "HELIOS_PUBLICATION_PATH", "path"),
-    ("stream", "HELIOS_PUBLICATION_STREAM", "stream"),
-)
-
 
 @dataclass(frozen=True, slots=True)
 class PublicationConfig:
@@ -89,128 +67,6 @@ class PublicationConfig:
         if self.sink == SINK_STREAM:
             return f"stream:{(self.stream or '').lower()}"
         return "memory"
-
-
-def _read_document(
-    environ: Mapping[str, str], config_file: Optional[Path | str]
-) -> Mapping[str, Any]:
-    file_path = config_file if config_file is not None else environ.get(CONFIG_FILE_ENV_VAR)
-    if not file_path:
-        return {}
-    path = Path(file_path)
-    if not path.is_file():
-        raise ConfigurationError(
-            "configuration file named but not found", config_file=str(path)
-        )
-    try:
-        with path.open("rb") as handle:
-            document = tomllib.load(handle)
-    except tomllib.TOMLDecodeError as exc:
-        raise ConfigurationError(
-            "malformed configuration file", config_file=str(path), detail=str(exc)
-        ) from exc
-    table = document.get(CONFIG_TABLE)
-    return table if isinstance(table, Mapping) else {}
-
-
-def load_publication_config(
-    environ: Optional[Mapping[str, str]] = None,
-    *,
-    config_file: Optional[Path | str] = None,
-) -> PublicationConfig:
-    """Load and validate publication configuration, reporting every problem."""
-    environ = os.environ if environ is None else environ
-    table = _read_document(environ, config_file)
-    problems: list[str] = []
-
-    # Each setting is resolved independently, and the layer it came from is
-    # remembered: the environment (rank 2) wins over the file (rank 1), which
-    # is what lets one container image run everywhere.
-    raw: dict[str, Any] = {}
-    source: dict[str, int] = {}
-    for attribute, env_var, key in _SETTINGS:
-        value = environ.get(env_var)
-        if value is not None and str(value).strip():
-            raw[attribute], source[attribute] = value, _FROM_ENVIRONMENT
-            continue
-        raw[attribute] = table.get(key)
-        source[attribute] = _FROM_FILE if raw[attribute] is not None else _FROM_NOWHERE
-
-    sink = None
-    if raw["sink"] is None or not str(raw["sink"]).strip():
-        problems.append(
-            "sink: required configuration is missing "
-            "(set HELIOS_PUBLICATION_SINK or [publication] sink in the config file)"
-        )
-    else:
-        sink = str(raw["sink"]).strip().upper()
-        if sink not in SUPPORTED_SINKS:
-            problems.append(
-                f"sink: expected one of {list(SUPPORTED_SINKS)}, received {sink!r}"
-            )
-            sink = None
-
-    path: Optional[Path] = None
-    raw_path = raw["path"]
-    if raw_path is not None and str(raw_path).strip():
-        path = Path(str(raw_path).strip())
-    stream: Optional[str] = None
-    raw_stream = raw["stream"]
-    if raw_stream is not None and str(raw_stream).strip():
-        stream = str(raw_stream).strip().upper()
-        if stream not in SUPPORTED_STREAMS:
-            problems.append(
-                f"stream: expected one of {list(SUPPORTED_STREAMS)}, received {stream!r}"
-            )
-            stream = None
-
-    # Each sink needs exactly its own settings.
-    #
-    # A setting belonging to a DIFFERENT sink is normally a contradiction, not
-    # a harmless extra: the operator believes they configured something HELIOS
-    # is not doing, and quietly ignoring it is how a deployment ends up
-    # publishing somewhere nobody is reading. The one exception is a setting a
-    # higher-precedence layer has overridden away — a file describing a FILE
-    # deployment, with the environment selecting MEMORY for a dry run, is an
-    # override, not a mistake.
-    def stray(attribute: str, message: str) -> None:
-        if source.get(attribute, _FROM_NOWHERE) >= source.get("sink", _FROM_NOWHERE):
-            problems.append(message)
-
-    if sink == SINK_FILE:
-        if path is None:
-            problems.append(
-                "path: sink FILE requires a destination "
-                "(set HELIOS_PUBLICATION_PATH or [publication] path)"
-            )
-        if stream is not None:
-            stray("stream", "stream: meaningful only for sink STREAM")
-    elif sink == SINK_STREAM:
-        if stream is None:
-            problems.append(
-                "stream: sink STREAM requires a destination "
-                f"(set HELIOS_PUBLICATION_STREAM to one of {list(SUPPORTED_STREAMS)})"
-            )
-        if path is not None:
-            stray("path", "path: meaningful only for sink FILE")
-    elif sink == SINK_MEMORY:
-        if path is not None:
-            stray("path", "path: meaningful only for sink FILE")
-        if stream is not None:
-            stray("stream", "stream: meaningful only for sink STREAM")
-
-    if problems:
-        raise ConfigurationError(
-            "invalid HELIOS publication configuration", problems=sorted(problems)
-        )
-    assert sink is not None
-    # Only the settings this sink actually uses are carried forward, so a
-    # PublicationConfig never describes a destination HELIOS is not using.
-    return PublicationConfig(
-        sink=sink,
-        path=path if sink == SINK_FILE else None,
-        stream=stream if sink == SINK_STREAM else None,
-    )
 
 
 def build_sink(config: PublicationConfig) -> PublicationSink:

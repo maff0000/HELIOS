@@ -176,14 +176,10 @@ Every ratio an atom publishes is computed at a fixed precision
 context, so a caller who had installed a coarser or finer ambient context
 cannot change what a strategy computes.
 
-> **Known boundary, outside this work item.** Rendering a decimal to canonical
-> JSON is the contract layer's job, and
-> `helios.contracts.serialisation.canonical_decimal` calls `Decimal.normalize()`,
-> which *does* honour the ambient decimal context. Nothing in HELIOS installs a
-> non-default context, so published bytes are stable in practice and the
-> cross-process determinism tests pass — but the guarantee is weaker than it
-> looks if a host application ever changes the context. This belongs to the
-> contract kernel, not to the strategies.
+Rendering a decimal to canonical JSON is the contract layer's job and carries
+the same guarantee independently: `canonical_decimal()` performs no decimal
+operation at all, so the published digits are context-independent too. See
+`docs/CONTRACTS.md` §3.3.
 
 ### 4.4 Edge conditions
 
@@ -214,13 +210,14 @@ word for "this state is void". The alternative, `DORMANT`, would assert
 "evaluated, nothing holds" when in fact nothing was evaluated — a silent
 default of exactly the kind the PID forbids.
 
-> **Deliberate, documented exception.** A containment envelope is published
-> **without** consulting the legal transition table, because an evaluation
-> failure is not a state change of the strategy's condition. The table governs
-> condition-driven transitions, which is all any strategy's own evaluation can
-> produce, and every one of those *is* validated against it. Without this
-> exception a strategy that was `DORMANT` could not publish a failure at all,
-> since `DORMANT -> INVALID` is not a legal condition-driven transition.
+The containment envelope is validated by `helios.contracts.state.transition()`
+like every other transition; there is no path around the table. Every state can
+reach `INVALID` (`docs/CONTRACTS.md` §2.1), which is what makes that possible:
+a strategy whose *evaluation itself* failed is void whatever it was doing
+beforehand.
+`tests/test_isolation.py::test_containment_is_validated_against_the_transition_table`
+runs the containment path from every one of the seven prior states and checks
+the siblings are still published.
 
 Containment covers `evaluate()`. An evaluator's `identity` and
 `required_inputs()` are read in the caller's thread before dispatch: an

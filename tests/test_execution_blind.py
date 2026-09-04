@@ -94,13 +94,32 @@ def test_no_code_references_execution_concepts(package):
             assert not found, f"{path}: {kind} {text!r} references {found}"
 
 
+#: Every tree that holds data files. ``helios/`` is here because the package
+#: ships data of its own — the reference strategy packages under
+#: ``helios/strategies/packages/`` — and a boundary the guard does not look at
+#: is not enforced. Scanning only ``fixtures/`` and ``config/`` left those
+#: unscanned.
+SCANNED_DATA_ROOTS = ("fixtures", "config", "helios")
+
+
 def test_no_fixture_or_data_file_references_execution_concepts():
-    for path in data_files(REPO_ROOT / "fixtures", exclude=EXCLUDED):
-        found = offences(strip_comment_lines(path.read_text(encoding="utf-8")))
-        assert not found, f"{path} references {found}"
-    for path in data_files(REPO_ROOT / "config", exclude=EXCLUDED):
-        found = offences(strip_comment_lines(path.read_text(encoding="utf-8")))
-        assert not found, f"{path} references {found}"
+    for root in SCANNED_DATA_ROOTS:
+        for path in data_files(REPO_ROOT / root, exclude=EXCLUDED):
+            found = offences(strip_comment_lines(path.read_text(encoding="utf-8")))
+            assert not found, f"{path} references {found}"
+
+
+def test_the_data_scan_actually_reaches_the_shipped_strategy_packages():
+    """A widened scan that still misses the files proves nothing."""
+    scanned = {
+        path
+        for root in SCANNED_DATA_ROOTS
+        for path in data_files(REPO_ROOT / root, exclude=EXCLUDED)
+    }
+    shipped = sorted((REPO_ROOT / "helios" / "strategies" / "packages").glob("*.yaml"))
+    assert shipped, "the reference strategy packages moved; update this guard"
+    for path in shipped:
+        assert path in scanned, path
 
 
 def test_the_published_envelope_has_no_execution_field():

@@ -149,7 +149,11 @@ def _transitions() -> Mapping[StrategyState, frozenset[StrategyState]]:
     table: dict[StrategyState, frozenset[StrategyState]] = {
         # Nothing holds. Conditions may start forming, or match outright — an
         # atomic such as a moving-average cross matches with no forming phase.
-        S.DORMANT: frozenset({S.DORMANT, S.FORMING, S.MATCHED}),
+        # INVALID is reachable too: a strategy that has never matched but whose
+        # evaluation raised is exactly as invalid as one whose match broke, and
+        # republishing DORMANT would falsely assert "we evaluated and nothing
+        # holds" when in fact nothing was evaluated.
+        S.DORMANT: frozenset({S.DORMANT, S.FORMING, S.MATCHED, S.INVALID}),
         # Partially satisfied. It may complete, fade back to dormant, be hard
         # invalidated, or run out of its forming window.
         S.FORMING: frozenset({S.FORMING, S.MATCHED, S.DORMANT, S.INVALID, S.EXPIRED}),
@@ -161,9 +165,14 @@ def _transitions() -> Mapping[StrategyState, frozenset[StrategyState]]:
         # Weakening may recover to ACTIVE; it never re-fires the MATCHED edge,
         # because the match already happened.
         S.WEAKENING: frozenset({S.WEAKENING, S.ACTIVE, S.INVALID, S.EXPIRED}),
-        # Resolved states rearm only via DORMANT.
+        # Resolved states rearm only via DORMANT — DORMANT is the only
+        # NON-resolved successor either of them has. EXPIRED may still become
+        # INVALID, because "void" is not a rearm: an occurrence that aged out
+        # and whose next evaluation cannot assert anything at all is invalid,
+        # and republishing EXPIRED would keep asserting "time ran out" about an
+        # evaluation that never happened.
         S.INVALID: frozenset({S.INVALID, S.DORMANT}),
-        S.EXPIRED: frozenset({S.EXPIRED, S.DORMANT}),
+        S.EXPIRED: frozenset({S.EXPIRED, S.DORMANT, S.INVALID}),
     }
     return MappingProxyType({key: value for key, value in table.items()})
 

@@ -1,4 +1,15 @@
-# HERMES fixtures
+# Fixtures
+
+Everything checked in under `fixtures/`. Four sets, one per boundary:
+
+```
+fixtures/hermes/            market facts HELIOS consumes    (§1)
+fixtures/strategy_packages/ strategy packages HSA authors   (§2)
+fixtures/hsa/               whole HSA handoffs              (§3)
+fixtures/falcon/            published payloads FALCON reads (§4)
+```
+
+## 1. HERMES fixtures
 
 Canonical, deterministic, hand-checkable market facts for `XAU_USD` across the
 GOLD template timeframes. They are the offline stand-in for the live HERMES
@@ -7,7 +18,7 @@ facts — a fixture HELIOS accepts is one the real contract accepts.
 
 Load them with `helios.hermes.load_fixture(path)`.
 
-## Layout
+### 1.1 Layout
 
 ```
 fixtures/hermes/
@@ -16,7 +27,7 @@ fixtures/hermes/
   stale/       structurally valid but too old, or with a forming last bar
 ```
 
-## File format
+### 1.2 File format
 
 ```json
 {
@@ -66,7 +77,7 @@ Notes:
   claims are asserted in `tests/test_hermes_fixtures.py`, so a fixture and its
   description cannot drift apart silently.
 
-## How the numbers were chosen
+### 1.3 How the numbers were chosen
 
 Prices are round, legible values around $2400 gold. OHLC is stated explicitly
 per frame. Indicator values are **supplied facts chosen for legibility, not
@@ -75,7 +86,7 @@ consumes whatever it is told. A golden cross in the H4 fixture is a golden
 cross because `ema_50` is stated to cross `ema_200`, exactly as the live feed
 would assert it.
 
-## Canonical fixtures and what each one proves
+### 1.4 Canonical fixtures and what each one proves
 
 | file | timeframe | frames | proves |
 |---|---|---|---|
@@ -89,7 +100,7 @@ Together they form an ordered temporal sequence across H4/H1/M15/M5 — enough
 for a multi-timeframe semantic chain without any timeframe being hard-coded
 globally.
 
-## Malformed fixtures
+### 1.5 Malformed fixtures
 
 Each carries exactly one defect and must fail loudly, naming the file and the
 frame index.
@@ -110,7 +121,7 @@ frame index.
 | `unknown_fixture_schema.json` | unrecognised fixture format |
 | `ingested_before_observed.json` | incoherent provenance |
 
-## Stale fixtures
+### 1.6 Stale fixtures
 
 These are **structurally valid** — staleness is a policy verdict, not a
 structural defect — so they load cleanly and are then refused by the freshness
@@ -121,9 +132,48 @@ rules.
 | `xau_usd_h4_stale.json` | same facts, judged three days later; `require_fresh_frame` raises `StaleFactError` |
 | `xau_usd_h4_incomplete_last_bar.json` | latest bar still forming; refused when `allow_incomplete_frames` is false, accepted when true |
 
-## Strategy package fixtures
+## 2. Strategy package fixtures
 
-`fixtures/strategy_packages/valid/` holds five loadable packages (three atomic,
-a `CONTEXT_TRIGGER` chain, a four-stage `SEQUENCE` chain).
+`fixtures/strategy_packages/valid/` holds six loadable packages: four atomic
+(`golden_cross`, `range_breakout`, `rejection_wick`, `swing_proximity`), a
+`CONTEXT_TRIGGER` chain and a four-stage `SEQUENCE` chain. The set is a
+**self-contained handoff**: every chain in it resolves against that directory
+alone, which `tests/test_contract_hsa.py` asserts through the handoff resolver.
+`swing_proximity@1.0.0` is deliberately the same definition as the reference
+package shipped at `helios/strategies/packages/`, and a test holds the two
+files to that — a promoted identity is immutable, so two files claiming one
+version must describe one strategy.
+
 `fixtures/strategy_packages/malformed/` holds ten packages, each broken in
 exactly one way, covering the failure rules in `docs/CONTRACTS.md` §5.1.
+
+## 3. HSA handoff fixtures
+
+`fixtures/hsa/` is about a handoff as a **set**, which is a property no single
+package has. Loading proves a package parses; resolving proves HELIOS can
+actually run it.
+
+| directory | what it is |
+|---|---|
+| `handoff/` | a realistic, complete HSA handoff: four atomic packages and two chains (`SEQUENCE` and `CONTEXT_TRIGGER`) covering the GOLD 4H/1H/15M/5M template. It resolves. |
+| `underspecified/` | packages that parse but leave something HELIOS refuses to guess — a `SEQUENCE` with no ordering window, a package requiring a fact HERMES does not publish |
+| `unresolved/missing_component/` | a chain naming a component the handoff does not contain |
+| `unresolved/version_mismatch/` | a chain naming `golden_cross@2.0.0` when the handoff holds `1.0.0`; HELIOS will not substitute a version |
+| `unresolved/chain_of_chains/` | a chain naming another chain as a component, which v1 refuses |
+
+Load one with `helios.integration.load_handoff(directory)`; every unresolved
+reference in the set is reported at once. See `docs/INTEGRATION.md` §3.
+
+## 4. FALCON golden payloads
+
+`fixtures/falcon/` holds four **exemplar published payloads** — the artefacts a
+FALCON integrator codes against, covering an atomic match, an atomic non-match,
+a matched chain and an expired chain.
+
+Each file carries the payload, its exact `canonical_json` bytes, a description
+and an `expectations` list. They are not hand-written: they are generated by
+the real publication path (`helios.integration.exemplars`) and
+`tests/test_contract_falcon.py` regenerates and compares them, so a golden file
+cannot drift from what HELIOS actually publishes.
+
+See `docs/INTEGRATION.md` §1.
