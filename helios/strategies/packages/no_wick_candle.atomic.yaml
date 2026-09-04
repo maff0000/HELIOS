@@ -1,0 +1,43 @@
+# Reference package: a no-wick directional candle on the CONFIRMATION timeframe.
+schema_version: helios.strategy_package/1.0.0
+kind: ATOMIC
+identity:
+  strategy_id: no_wick_candle
+  strategy_version: 1.0.0
+metadata:
+  title: No-wick directional candle
+  description: >-
+    A bar that opened at one extreme of its range and closed at the other, so
+    that almost all of its range is body. Candle geometry intrinsic to this
+    definition, not a reusable market indicator.
+  authored_by: FORGE
+  authored_at_utc: 2026-01-02T09:20:00Z
+inputs:
+  - role: CONFIRMATION
+    timeframe: M15
+    lookback: 1
+    required_fields: [open, high, low, close]
+parameters:
+  max_wick_ratio:
+    type: DECIMAL
+    value: 0.05
+    minimum: 0
+    maximum: 1
+    description: Largest wick, as a fraction of the bar's range, still allowed.
+  min_body_ratio:
+    type: DECIMAL
+    value: 0.90
+    minimum: 0
+    maximum: 1
+    description: Smallest body, as a fraction of the bar's range, that counts.
+direction:
+  mode: DIRECTIONAL
+  resolution: STRATEGY_LOCAL
+timing:
+  evaluate_on: CLOSED_FRAME
+persistence:
+  min_matched_frames: 1
+  weakening_enabled: false
+expiry:
+  mode: FRAMES
+  frames: 4

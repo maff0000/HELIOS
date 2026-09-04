@@ -1,0 +1,49 @@
+# Reference package: momentum reaching an extreme while volatility expands, on
+# the TRIGGER timeframe.
+schema_version: helios.strategy_package/1.0.0
+kind: ATOMIC
+identity:
+  strategy_id: momentum_volatility
+  strategy_version: 1.0.0
+metadata:
+  title: Momentum and volatility expansion
+  description: >-
+    rsi_14 reaches a declared extreme on the same bar that atr_14 expands by at
+    least the declared factor. Both readings are consumed as HERMES facts.
+  authored_by: FORGE
+  authored_at_utc: 2026-01-02T09:25:00Z
+inputs:
+  - role: TRIGGER
+    timeframe: M5
+    lookback: 2
+    required_fields: [close, rsi_14, atr_14]
+parameters:
+  momentum_upper:
+    type: DECIMAL
+    value: 70.00
+    minimum: 0
+    maximum: 100
+    description: rsi_14 at or above this reads as upward momentum.
+  momentum_lower:
+    type: DECIMAL
+    value: 30.00
+    minimum: 0
+    maximum: 100
+    description: rsi_14 at or below this reads as downward momentum.
+  min_volatility_expansion:
+    type: DECIMAL
+    value: 1.50
+    minimum: 1
+    maximum: 100
+    description: Smallest atr_14 expansion ratio that counts.
+direction:
+  mode: DIRECTIONAL
+  resolution: STRATEGY_LOCAL
+timing:
+  evaluate_on: CLOSED_FRAME
+persistence:
+  min_matched_frames: 1
+  weakening_enabled: true
+expiry:
+  mode: DURATION
+  duration_seconds: 1800
