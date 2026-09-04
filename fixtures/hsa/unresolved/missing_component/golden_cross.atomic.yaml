@@ -1,0 +1,40 @@
+# HSA-authored atomic strategy: golden / death cross on the CONTEXT frame.
+#
+# Part of the realistic handoff bundle in this directory. Every chain
+# component in the bundle resolves to a package that is actually here, which
+# is what makes the handoff runnable.
+schema_version: helios.strategy_package/1.0.0
+kind: ATOMIC
+identity:
+  strategy_id: golden_cross
+  strategy_version: 1.0.0
+metadata:
+  title: Golden / death cross
+  description: >-
+    ema_50 crossing ema_200 on the context frame. Both are consumed as HERMES
+    facts; HELIOS does not compute either of them.
+  authored_by: HSA
+  authored_at_utc: 2026-01-02T09:00:00Z
+inputs:
+  - role: CONTEXT
+    timeframe: H4
+    lookback: 2
+    required_fields: [close, ema_50, ema_200]
+parameters:
+  min_separation:
+    type: DECIMAL
+    value: 0.25
+    minimum: 0
+    maximum: 100
+    description: Minimum absolute ema_50/ema_200 separation for the cross to count.
+direction:
+  mode: DIRECTIONAL
+  resolution: STRATEGY_LOCAL
+timing:
+  evaluate_on: CLOSED_FRAME
+persistence:
+  min_matched_frames: 1
+  weakening_enabled: true
+expiry:
+  mode: FRAMES
+  frames: 6

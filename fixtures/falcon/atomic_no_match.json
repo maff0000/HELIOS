@@ -1,0 +1,59 @@
+{
+  "canonical_json": "{\"active_since_utc\":null,\"chain_id\":null,\"chain_version\":null,\"components\":[],\"direction\":\"NEUTRAL\",\"evidence\":{\"close\":\"2408.50\",\"lookback_bars\":20,\"range_high\":\"2410.00\",\"range_low\":\"2395.50\"},\"explanation\":\"close 2408.50 stayed inside the 20-bar M5 range 2395.50-2410.00; no declared precondition holds.\",\"first_matched_at_utc\":null,\"inputs\":[{\"age_seconds\":60,\"frame_timestamp_utc\":\"2026-01-06T00:00:00.000000Z\",\"instrument\":\"XAU_USD\",\"is_complete\":true,\"is_fresh\":true,\"max_age_seconds\":510,\"schema_version\":\"hermes.market_fact/1.0.0\",\"semantic_role\":\"TRIGGER\",\"source\":\"hermes\",\"timeframe\":\"M5\"}],\"instrument\":\"XAU_USD\",\"kind\":\"ATOMIC\",\"last_evaluated_at_utc\":\"2026-01-06T00:05:00.000000Z\",\"last_matched_at_utc\":null,\"schema_version\":\"helios.strategy_state/1.0.0\",\"semantic_role\":\"TRIGGER\",\"state\":\"DORMANT\",\"strategy_id\":\"range_breakout\",\"strategy_version\":\"1.0.0\",\"strength\":null,\"timeframe\":\"M5\",\"validity\":{\"reason\":\"a non-match is open-ended: it holds until the next evaluation says otherwise\",\"valid_from_utc\":\"2026-01-06T00:05:00.000000Z\",\"valid_until_utc\":null}}",
+  "description": "An atomic strategy that was evaluated and did not match. HELIOS publishes the non-match, with an explanation, rather than staying silent.",
+  "envelope_schema_version": "helios.strategy_state/1.0.0",
+  "expectations": [
+    "a DORMANT state carries no match history at all",
+    "a non-match still publishes an explanation and its evidence",
+    "strength is null where the strategy declares none, and the key is still present",
+    "direction NEUTRAL means a directional strategy currently finds no bias; it is not the same as NONE",
+    "inputs are published even when nothing matched, so a consumer can tell 'evaluated and false' from 'not evaluated'"
+  ],
+  "golden_id": "atomic_no_match",
+  "golden_schema_version": "helios.contract_golden/1.0.0",
+  "payload": {
+    "active_since_utc": null,
+    "chain_id": null,
+    "chain_version": null,
+    "components": [],
+    "direction": "NEUTRAL",
+    "evidence": {
+      "close": "2408.50",
+      "lookback_bars": 20,
+      "range_high": "2410.00",
+      "range_low": "2395.50"
+    },
+    "explanation": "close 2408.50 stayed inside the 20-bar M5 range 2395.50-2410.00; no declared precondition holds.",
+    "first_matched_at_utc": null,
+    "inputs": [
+      {
+        "age_seconds": 60,
+        "frame_timestamp_utc": "2026-01-06T00:00:00.000000Z",
+        "instrument": "XAU_USD",
+        "is_complete": true,
+        "is_fresh": true,
+        "max_age_seconds": 510,
+        "schema_version": "hermes.market_fact/1.0.0",
+        "semantic_role": "TRIGGER",
+        "source": "hermes",
+        "timeframe": "M5"
+      }
+    ],
+    "instrument": "XAU_USD",
+    "kind": "ATOMIC",
+    "last_evaluated_at_utc": "2026-01-06T00:05:00.000000Z",
+    "last_matched_at_utc": null,
+    "schema_version": "helios.strategy_state/1.0.0",
+    "semantic_role": "TRIGGER",
+    "state": "DORMANT",
+    "strategy_id": "range_breakout",
+    "strategy_version": "1.0.0",
+    "strength": null,
+    "timeframe": "M5",
+    "validity": {
+      "reason": "a non-match is open-ended: it holds until the next evaluation says otherwise",
+      "valid_from_utc": "2026-01-06T00:05:00.000000Z",
+      "valid_until_utc": null
+    }
+  }
+}

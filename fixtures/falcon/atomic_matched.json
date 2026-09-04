@@ -1,0 +1,60 @@
+{
+  "canonical_json": "{\"active_since_utc\":\"2026-01-06T00:00:00.000000Z\",\"chain_id\":null,\"chain_version\":null,\"components\":[],\"direction\":\"LONG\",\"evidence\":{\"ema_200\":\"2400.00\",\"ema_50\":\"2402.40\",\"frames_since_cross\":0,\"min_separation\":\"0.25\",\"separation\":\"2.40\"},\"explanation\":\"ema_50 (2402.40) crossed above ema_200 (2400.00) on the H4 CONTEXT frame opening 2026-01-05T20:00:00Z; separation 2.40 clears the declared minimum of 0.25.\",\"first_matched_at_utc\":\"2026-01-06T00:00:00.000000Z\",\"inputs\":[{\"age_seconds\":60,\"frame_timestamp_utc\":\"2026-01-05T20:00:00.000000Z\",\"instrument\":\"XAU_USD\",\"is_complete\":true,\"is_fresh\":true,\"max_age_seconds\":21660,\"schema_version\":\"hermes.market_fact/1.0.0\",\"semantic_role\":\"CONTEXT\",\"source\":\"hermes\",\"timeframe\":\"H4\"}],\"instrument\":\"XAU_USD\",\"kind\":\"ATOMIC\",\"last_evaluated_at_utc\":\"2026-01-06T00:00:00.000000Z\",\"last_matched_at_utc\":\"2026-01-06T00:00:00.000000Z\",\"schema_version\":\"helios.strategy_state/1.0.0\",\"semantic_role\":\"CONTEXT\",\"state\":\"MATCHED\",\"strategy_id\":\"golden_cross\",\"strategy_version\":\"1.0.0\",\"strength\":\"0.75\",\"timeframe\":\"H4\",\"validity\":{\"reason\":\"six H4 frames from the match, as the package declares\",\"valid_from_utc\":\"2026-01-06T00:00:00.000000Z\",\"valid_until_utc\":\"2026-01-07T00:00:00.000000Z\"}}",
+  "description": "An atomic strategy whose condition became true on this evaluation. ema_50 crossed above ema_200 on the H4 CONTEXT frame.",
+  "envelope_schema_version": "helios.strategy_state/1.0.0",
+  "expectations": [
+    "kind is ATOMIC, so chain_id, chain_version and components are empty",
+    "an atomic envelope states the timeframe and semantic role it read",
+    "strength is an exact decimal string, never a JSON number",
+    "the match edge sets first_matched, last_matched and active_since to the same instant",
+    "validity is bounded: this package declares a six-frame expiry"
+  ],
+  "golden_id": "atomic_matched",
+  "golden_schema_version": "helios.contract_golden/1.0.0",
+  "payload": {
+    "active_since_utc": "2026-01-06T00:00:00.000000Z",
+    "chain_id": null,
+    "chain_version": null,
+    "components": [],
+    "direction": "LONG",
+    "evidence": {
+      "ema_200": "2400.00",
+      "ema_50": "2402.40",
+      "frames_since_cross": 0,
+      "min_separation": "0.25",
+      "separation": "2.40"
+    },
+    "explanation": "ema_50 (2402.40) crossed above ema_200 (2400.00) on the H4 CONTEXT frame opening 2026-01-05T20:00:00Z; separation 2.40 clears the declared minimum of 0.25.",
+    "first_matched_at_utc": "2026-01-06T00:00:00.000000Z",
+    "inputs": [
+      {
+        "age_seconds": 60,
+        "frame_timestamp_utc": "2026-01-05T20:00:00.000000Z",
+        "instrument": "XAU_USD",
+        "is_complete": true,
+        "is_fresh": true,
+        "max_age_seconds": 21660,
+        "schema_version": "hermes.market_fact/1.0.0",
+        "semantic_role": "CONTEXT",
+        "source": "hermes",
+        "timeframe": "H4"
+      }
+    ],
+    "instrument": "XAU_USD",
+    "kind": "ATOMIC",
+    "last_evaluated_at_utc": "2026-01-06T00:00:00.000000Z",
+    "last_matched_at_utc": "2026-01-06T00:00:00.000000Z",
+    "schema_version": "helios.strategy_state/1.0.0",
+    "semantic_role": "CONTEXT",
+    "state": "MATCHED",
+    "strategy_id": "golden_cross",
+    "strategy_version": "1.0.0",
+    "strength": "0.75",
+    "timeframe": "H4",
+    "validity": {
+      "reason": "six H4 frames from the match, as the package declares",
+      "valid_from_utc": "2026-01-06T00:00:00.000000Z",
+      "valid_until_utc": "2026-01-07T00:00:00.000000Z"
+    }
+  }
+}

@@ -1,0 +1,95 @@
+{
+  "canonical_json": "{\"active_since_utc\":null,\"chain_id\":\"gold_context_trigger\",\"chain_version\":\"1.0.0\",\"components\":[{\"contribution\":\"context still holds; it did not cause the expiry\",\"direction\":\"LONG\",\"last_evaluated_at_utc\":\"2026-01-06T04:10:00.000000Z\",\"matched\":true,\"semantic_role\":\"CONTEXT\",\"sequence_index\":null,\"state\":\"ACTIVE\",\"strategy_id\":\"golden_cross\",\"strategy_version\":\"1.0.0\",\"timeframe\":\"H4\"},{\"contribution\":\"close fell back inside the range; the trigger no longer holds\",\"direction\":\"NEUTRAL\",\"last_evaluated_at_utc\":\"2026-01-06T04:10:00.000000Z\",\"matched\":false,\"semantic_role\":\"TRIGGER\",\"sequence_index\":null,\"state\":\"DORMANT\",\"strategy_id\":\"range_breakout\",\"strategy_version\":\"1.0.0\",\"timeframe\":\"M5\"}],\"direction\":\"LONG\",\"evidence\":{\"components_required\":2,\"components_satisfied\":1},\"explanation\":\"the chain match reached its declared expiry at 2026-01-06T04:05:00Z. TRIGGER range_breakout@1.0.0 returned to DORMANT while CONTEXT golden_cross@1.0.0 stayed ACTIVE, so the occurrence aged out rather than being invalidated.\",\"first_matched_at_utc\":\"2026-01-06T00:05:00.000000Z\",\"inputs\":[{\"age_seconds\":600,\"frame_timestamp_utc\":\"2026-01-06T00:00:00.000000Z\",\"instrument\":\"XAU_USD\",\"is_complete\":true,\"is_fresh\":true,\"max_age_seconds\":21660,\"schema_version\":\"hermes.market_fact/1.0.0\",\"semantic_role\":\"CONTEXT\",\"source\":\"hermes\",\"timeframe\":\"H4\"},{\"age_seconds\":300,\"frame_timestamp_utc\":\"2026-01-06T04:05:00.000000Z\",\"instrument\":\"XAU_USD\",\"is_complete\":true,\"is_fresh\":true,\"max_age_seconds\":510,\"schema_version\":\"hermes.market_fact/1.0.0\",\"semantic_role\":\"TRIGGER\",\"source\":\"hermes\",\"timeframe\":\"M5\"}],\"instrument\":\"XAU_USD\",\"kind\":\"CHAIN\",\"last_evaluated_at_utc\":\"2026-01-06T04:10:00.000000Z\",\"last_matched_at_utc\":\"2026-01-06T00:05:00.000000Z\",\"schema_version\":\"helios.strategy_state/1.0.0\",\"semantic_role\":null,\"state\":\"EXPIRED\",\"strategy_id\":\"gold_context_trigger\",\"strategy_version\":\"1.0.0\",\"strength\":null,\"timeframe\":null,\"validity\":{\"reason\":\"14400 seconds elapsed since the match without an invalidation condition firing\",\"valid_from_utc\":\"2026-01-06T00:05:00.000000Z\",\"valid_until_utc\":\"2026-01-06T04:05:00.000000Z\"}}",
+  "description": "The same chain, later: the match aged past its declared validity window without being invalidated, so the occurrence EXPIRED.",
+  "envelope_schema_version": "helios.strategy_state/1.0.0",
+  "expectations": [
+    "EXPIRED and INVALID are distinct: nothing broke here, time ran out",
+    "an expired state retains its match history so a consumer can see what ended and when",
+    "active_since is cleared once the state is no longer live",
+    "validity carries valid_until_utc and a reason in the strategy's own terms",
+    "component provenance survives the end of the occurrence, including a component that has since fallen dormant",
+    "an expired input may be published as not fresh; the freshness verdict is reported, not hidden"
+  ],
+  "golden_id": "chain_expired",
+  "golden_schema_version": "helios.contract_golden/1.0.0",
+  "payload": {
+    "active_since_utc": null,
+    "chain_id": "gold_context_trigger",
+    "chain_version": "1.0.0",
+    "components": [
+      {
+        "contribution": "context still holds; it did not cause the expiry",
+        "direction": "LONG",
+        "last_evaluated_at_utc": "2026-01-06T04:10:00.000000Z",
+        "matched": true,
+        "semantic_role": "CONTEXT",
+        "sequence_index": null,
+        "state": "ACTIVE",
+        "strategy_id": "golden_cross",
+        "strategy_version": "1.0.0",
+        "timeframe": "H4"
+      },
+      {
+        "contribution": "close fell back inside the range; the trigger no longer holds",
+        "direction": "NEUTRAL",
+        "last_evaluated_at_utc": "2026-01-06T04:10:00.000000Z",
+        "matched": false,
+        "semantic_role": "TRIGGER",
+        "sequence_index": null,
+        "state": "DORMANT",
+        "strategy_id": "range_breakout",
+        "strategy_version": "1.0.0",
+        "timeframe": "M5"
+      }
+    ],
+    "direction": "LONG",
+    "evidence": {
+      "components_required": 2,
+      "components_satisfied": 1
+    },
+    "explanation": "the chain match reached its declared expiry at 2026-01-06T04:05:00Z. TRIGGER range_breakout@1.0.0 returned to DORMANT while CONTEXT golden_cross@1.0.0 stayed ACTIVE, so the occurrence aged out rather than being invalidated.",
+    "first_matched_at_utc": "2026-01-06T00:05:00.000000Z",
+    "inputs": [
+      {
+        "age_seconds": 600,
+        "frame_timestamp_utc": "2026-01-06T00:00:00.000000Z",
+        "instrument": "XAU_USD",
+        "is_complete": true,
+        "is_fresh": true,
+        "max_age_seconds": 21660,
+        "schema_version": "hermes.market_fact/1.0.0",
+        "semantic_role": "CONTEXT",
+        "source": "hermes",
+        "timeframe": "H4"
+      },
+      {
+        "age_seconds": 300,
+        "frame_timestamp_utc": "2026-01-06T04:05:00.000000Z",
+        "instrument": "XAU_USD",
+        "is_complete": true,
+        "is_fresh": true,
+        "max_age_seconds": 510,
+        "schema_version": "hermes.market_fact/1.0.0",
+        "semantic_role": "TRIGGER",
+        "source": "hermes",
+        "timeframe": "M5"
+      }
+    ],
+    "instrument": "XAU_USD",
+    "kind": "CHAIN",
+    "last_evaluated_at_utc": "2026-01-06T04:10:00.000000Z",
+    "last_matched_at_utc": "2026-01-06T00:05:00.000000Z",
+    "schema_version": "helios.strategy_state/1.0.0",
+    "semantic_role": null,
+    "state": "EXPIRED",
+    "strategy_id": "gold_context_trigger",
+    "strategy_version": "1.0.0",
+    "strength": null,
+    "timeframe": null,
+    "validity": {
+      "reason": "14400 seconds elapsed since the match without an invalidation condition firing",
+      "valid_from_utc": "2026-01-06T00:05:00.000000Z",
+      "valid_until_utc": "2026-01-06T04:05:00.000000Z"
+    }
+  }
+}

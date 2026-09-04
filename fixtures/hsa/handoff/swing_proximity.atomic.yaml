@@ -1,0 +1,41 @@
+# HSA-authored atomic strategy: proximity to a recent swing high or low.
+schema_version: helios.strategy_package/1.0.0
+kind: ATOMIC
+identity:
+  strategy_id: swing_proximity
+  strategy_version: 1.0.0
+metadata:
+  title: Swing proximity
+  description: >-
+    How near the current close sits to the highest high or lowest low of the
+    lookback window, measured in atr_14 multiples.
+  authored_by: HSA
+  authored_at_utc: 2026-01-02T09:15:00Z
+inputs:
+  - role: LOCATION
+    timeframe: H1
+    lookback: 24
+    required_fields: [high, low, close, atr_14]
+parameters:
+  max_distance_atr:
+    type: DECIMAL
+    value: 0.5
+    minimum: 0
+    maximum: 10
+    description: Maximum distance from the swing level, in atr_14 multiples.
+  swing_lookback_bars:
+    type: INTEGER
+    value: 24
+    minimum: 3
+    maximum: 500
+direction:
+  mode: DIRECTIONAL
+  resolution: STRATEGY_LOCAL
+timing:
+  evaluate_on: CLOSED_FRAME
+persistence:
+  min_matched_frames: 1
+  weakening_enabled: true
+expiry:
+  mode: FRAMES
+  frames: 8

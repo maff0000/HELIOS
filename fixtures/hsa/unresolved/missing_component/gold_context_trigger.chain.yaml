@@ -1,0 +1,53 @@
+# An HSA handoff HELIOS cannot run: the chain names a TRIGGER component that
+# is not in this bundle at any version.
+#
+# HELIOS refuses the whole handoff and names precisely what is unresolved. It
+# does not run the chain with the component silently omitted, and it does not
+# go looking for something with a similar name.
+schema_version: helios.strategy_package/1.0.0
+kind: CHAIN
+identity:
+  strategy_id: gold_context_trigger
+  strategy_version: 1.0.0
+metadata:
+  title: GOLD context/trigger chain
+  description: >-
+    Directional context on H4 must agree with a breakout trigger on M5.
+  authored_by: HSA
+  authored_at_utc: 2026-01-02T10:00:00Z
+inputs:
+  - role: CONTEXT
+    timeframe: H4
+    lookback: 2
+    required_fields: [close, ema_50, ema_200]
+  - role: TRIGGER
+    timeframe: M5
+    lookback: 20
+    required_fields: [high, low, close, atr_14]
+parameters: {}
+direction:
+  mode: DIRECTIONAL
+  resolution: FROM_COMPONENTS
+  component_relationship: SAME
+timing:
+  evaluate_on: CLOSED_FRAME
+persistence:
+  min_matched_frames: 1
+  weakening_enabled: true
+expiry:
+  mode: DURATION
+  duration_seconds: 14400
+chain:
+  primitive: CONTEXT_TRIGGER
+  explanation_required: true
+  components:
+    - strategy_id: golden_cross
+      strategy_version: 1.0.0
+      role: CONTEXT
+      direction_relationship: SAME
+      required_states: [MATCHED, ACTIVE, WEAKENING]
+    - strategy_id: range_breakout
+      strategy_version: 1.0.0
+      role: TRIGGER
+      direction_relationship: SAME
+      required_states: [MATCHED]

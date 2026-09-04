@@ -1,0 +1,503 @@
+{
+  "$defs": {
+    "ComponentProvenance": {
+      "additionalProperties": false,
+      "description": "What one component contributed to a chain's state.\n\nv1 chains consume atomic strategies directly, so a component references an\natomic identity. Chain-of-chain recursion is deliberately not modelled;\nthe PID requires explicit architecture authority before introducing it.",
+      "properties": {
+        "contribution": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Contribution"
+        },
+        "direction": {
+          "enum": [
+            "LONG",
+            "SHORT",
+            "NEUTRAL",
+            "NONE"
+          ],
+          "title": "Direction",
+          "type": "string"
+        },
+        "last_evaluated_at_utc": {
+          "description": "A UTC instant, fixed-width ISO-8601 ending in 'Z'.",
+          "format": "date-time",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{6}Z$",
+          "type": "string"
+        },
+        "matched": {
+          "title": "Matched",
+          "type": "boolean"
+        },
+        "semantic_role": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Z][A-Z0-9_]{1,31}$",
+              "title": "SemanticRole",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Semantic Role"
+        },
+        "sequence_index": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Sequence Index"
+        },
+        "state": {
+          "enum": [
+            "DORMANT",
+            "FORMING",
+            "MATCHED",
+            "ACTIVE",
+            "WEAKENING",
+            "INVALID",
+            "EXPIRED"
+          ],
+          "title": "StrategyState",
+          "type": "string"
+        },
+        "strategy_id": {
+          "pattern": "^[a-z][a-z0-9_]{2,63}$",
+          "title": "StrategyId",
+          "type": "string"
+        },
+        "strategy_version": {
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+          "title": "StrategyVersion",
+          "type": "string"
+        },
+        "timeframe": {
+          "anyOf": [
+            {
+              "enum": [
+                "M1",
+                "M5",
+                "M15",
+                "H1",
+                "H4",
+                "D1"
+              ],
+              "title": "Timeframe",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Timeframe"
+        }
+      },
+      "required": [
+        "contribution",
+        "direction",
+        "last_evaluated_at_utc",
+        "matched",
+        "semantic_role",
+        "sequence_index",
+        "state",
+        "strategy_id",
+        "strategy_version",
+        "timeframe"
+      ],
+      "title": "ComponentProvenance",
+      "type": "object"
+    },
+    "InputFreshness": {
+      "additionalProperties": false,
+      "description": "Freshness and source metadata for one market-fact input behind a state.",
+      "properties": {
+        "age_seconds": {
+          "title": "Age Seconds",
+          "type": "integer"
+        },
+        "frame_timestamp_utc": {
+          "description": "A UTC instant, fixed-width ISO-8601 ending in 'Z'.",
+          "format": "date-time",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{6}Z$",
+          "type": "string"
+        },
+        "instrument": {
+          "pattern": "^[A-Z0-9]{2,10}(_[A-Z0-9]{2,10})?$",
+          "title": "Instrument",
+          "type": "string"
+        },
+        "is_complete": {
+          "title": "Is Complete",
+          "type": "boolean"
+        },
+        "is_fresh": {
+          "title": "Is Fresh",
+          "type": "boolean"
+        },
+        "max_age_seconds": {
+          "title": "Max Age Seconds",
+          "type": "integer"
+        },
+        "schema_version": {
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "semantic_role": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Z][A-Z0-9_]{1,31}$",
+              "title": "SemanticRole",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Semantic Role"
+        },
+        "source": {
+          "pattern": "^[a-z][a-z0-9_.]{1,63}$",
+          "title": "SourceName",
+          "type": "string"
+        },
+        "timeframe": {
+          "enum": [
+            "M1",
+            "M5",
+            "M15",
+            "H1",
+            "H4",
+            "D1"
+          ],
+          "title": "Timeframe",
+          "type": "string"
+        }
+      },
+      "required": [
+        "age_seconds",
+        "frame_timestamp_utc",
+        "instrument",
+        "is_complete",
+        "is_fresh",
+        "max_age_seconds",
+        "schema_version",
+        "semantic_role",
+        "source",
+        "timeframe"
+      ],
+      "title": "InputFreshness",
+      "type": "object"
+    },
+    "Validity": {
+      "additionalProperties": false,
+      "description": "Temporal validity of the published state.\n\n``valid_until_utc`` is ``None`` for an open-ended state \u2014 that is an\nexplicit \"no declared expiry\", not a missing value. ``reason`` explains an\n``INVALID``/``EXPIRED`` state in the strategy's own terms.",
+      "properties": {
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Reason"
+        },
+        "valid_from_utc": {
+          "anyOf": [
+            {
+              "description": "A UTC instant, fixed-width ISO-8601 ending in 'Z'.",
+              "format": "date-time",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{6}Z$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Valid From Utc"
+        },
+        "valid_until_utc": {
+          "anyOf": [
+            {
+              "description": "A UTC instant, fixed-width ISO-8601 ending in 'Z'.",
+              "format": "date-time",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{6}Z$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Valid Until Utc"
+        }
+      },
+      "required": [
+        "reason",
+        "valid_from_utc",
+        "valid_until_utc"
+      ],
+      "title": "Validity",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The normalised strategy-state envelope HELIOS publishes for atomic strategies and chains alike. Canonical JSON: object keys sorted, no insignificant whitespace, decimals as exact strings, instants as fixed-width UTC, nulls preserved. Envelope schema_version: helios.strategy_state/1.0.0. A consumer that does not recognise the published schema_version must refuse the payload rather than interpret it.",
+  "properties": {
+    "active_since_utc": {
+      "anyOf": [
+        {
+          "description": "A UTC instant, fixed-width ISO-8601 ending in 'Z'.",
+          "format": "date-time",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{6}Z$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Active Since Utc"
+    },
+    "chain_id": {
+      "anyOf": [
+        {
+          "pattern": "^[a-z][a-z0-9_]{2,63}$",
+          "title": "ChainId",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Chain Id"
+    },
+    "chain_version": {
+      "anyOf": [
+        {
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+          "title": "StrategyVersion",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Chain Version"
+    },
+    "components": {
+      "items": {
+        "$ref": "#/$defs/ComponentProvenance"
+      },
+      "title": "Components",
+      "type": "array"
+    },
+    "direction": {
+      "enum": [
+        "LONG",
+        "SHORT",
+        "NEUTRAL",
+        "NONE"
+      ],
+      "title": "Direction",
+      "type": "string"
+    },
+    "evidence": {
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "integer"
+          },
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "title": "Evidence",
+      "type": "object"
+    },
+    "explanation": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Explanation"
+    },
+    "first_matched_at_utc": {
+      "anyOf": [
+        {
+          "description": "A UTC instant, fixed-width ISO-8601 ending in 'Z'.",
+          "format": "date-time",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{6}Z$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "First Matched At Utc"
+    },
+    "inputs": {
+      "items": {
+        "$ref": "#/$defs/InputFreshness"
+      },
+      "title": "Inputs",
+      "type": "array"
+    },
+    "instrument": {
+      "pattern": "^[A-Z0-9]{2,10}(_[A-Z0-9]{2,10})?$",
+      "title": "Instrument",
+      "type": "string"
+    },
+    "kind": {
+      "enum": [
+        "ATOMIC",
+        "CHAIN"
+      ],
+      "title": "EnvelopeKind",
+      "type": "string"
+    },
+    "last_evaluated_at_utc": {
+      "description": "A UTC instant, fixed-width ISO-8601 ending in 'Z'.",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{6}Z$",
+      "type": "string"
+    },
+    "last_matched_at_utc": {
+      "anyOf": [
+        {
+          "description": "A UTC instant, fixed-width ISO-8601 ending in 'Z'.",
+          "format": "date-time",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{6}Z$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Last Matched At Utc"
+    },
+    "schema_version": {
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "semantic_role": {
+      "anyOf": [
+        {
+          "pattern": "^[A-Z][A-Z0-9_]{1,31}$",
+          "title": "SemanticRole",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Semantic Role"
+    },
+    "state": {
+      "enum": [
+        "DORMANT",
+        "FORMING",
+        "MATCHED",
+        "ACTIVE",
+        "WEAKENING",
+        "INVALID",
+        "EXPIRED"
+      ],
+      "title": "StrategyState",
+      "type": "string"
+    },
+    "strategy_id": {
+      "pattern": "^[a-z][a-z0-9_]{2,63}$",
+      "title": "StrategyId",
+      "type": "string"
+    },
+    "strategy_version": {
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+      "title": "StrategyVersion",
+      "type": "string"
+    },
+    "strength": {
+      "anyOf": [
+        {
+          "description": "An exact decimal, published as a normalised string. Never a JSON number: binary floating point cannot represent these values exactly.",
+          "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Strength"
+    },
+    "timeframe": {
+      "anyOf": [
+        {
+          "enum": [
+            "M1",
+            "M5",
+            "M15",
+            "H1",
+            "H4",
+            "D1"
+          ],
+          "title": "Timeframe",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Timeframe"
+    },
+    "validity": {
+      "$ref": "#/$defs/Validity"
+    }
+  },
+  "required": [
+    "active_since_utc",
+    "chain_id",
+    "chain_version",
+    "components",
+    "direction",
+    "evidence",
+    "explanation",
+    "first_matched_at_utc",
+    "inputs",
+    "instrument",
+    "kind",
+    "last_evaluated_at_utc",
+    "last_matched_at_utc",
+    "schema_version",
+    "semantic_role",
+    "state",
+    "strategy_id",
+    "strategy_version",
+    "strength",
+    "timeframe",
+    "validity"
+  ],
+  "title": "HELIOS strategy state",
+  "type": "object"
+}
