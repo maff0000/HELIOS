@@ -93,4 +93,3 @@ def replay(status_file: Path, **overrides: str) -> tuple[str, ...]:
     for instant in runtime.instants:
         runtime.evaluate_once(instant)
     return sink.records
-

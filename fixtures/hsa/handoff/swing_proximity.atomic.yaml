@@ -1,4 +1,14 @@
 # HSA-authored atomic strategy: proximity to a recent swing high or low.
+#
+# Part of the realistic handoff bundle in this directory, and the LOCATION
+# component of gold_staged_sequence.chain.yaml.
+#
+# The definition below is deliberately identical to the promoted package at
+# fixtures/strategy_packages/valid/swing_proximity.atomic.yaml. A promoted
+# (strategy_id, strategy_version) is immutable per docs/INTEGRATION.md 4.2, so
+# every file claiming swing_proximity@1.0.0 must describe one strategy or
+# published state would not be reproducible. Only the metadata below is
+# HSA's own; a behaviour change here would need a new version, never an edit.
 schema_version: helios.strategy_package/1.0.0
 kind: ATOMIC
 identity:
@@ -7,27 +17,29 @@ identity:
 metadata:
   title: Swing proximity
   description: >-
-    How near the current close sits to the highest high or lowest low of the
-    lookback window, measured in atr_14 multiples.
+    How near the current close sits to the swing high or swing low of the
+    declared lookback, in price units. LONG denotes the upper extreme and
+    SHORT the lower; both are statements of location, not of intent.
   authored_by: HSA
   authored_at_utc: 2026-01-02T09:15:00Z
 inputs:
   - role: LOCATION
     timeframe: H1
     lookback: 24
-    required_fields: [high, low, close, atr_14]
+    required_fields: [high, low, close]
 parameters:
-  max_distance_atr:
-    type: DECIMAL
-    value: 0.5
-    minimum: 0
-    maximum: 10
-    description: Maximum distance from the swing level, in atr_14 multiples.
-  swing_lookback_bars:
+  lookback_bars:
     type: INTEGER
     value: 24
-    minimum: 3
+    minimum: 2
     maximum: 500
+    description: Bars the swing extremes are measured over.
+  max_distance:
+    type: DECIMAL
+    value: 10.00
+    minimum: 0
+    maximum: 1000
+    description: How near the close must be to a swing extreme, in price units.
 direction:
   mode: DIRECTIONAL
   resolution: STRATEGY_LOCAL
@@ -38,4 +50,4 @@ persistence:
   weakening_enabled: true
 expiry:
   mode: FRAMES
-  frames: 8
+  frames: 12

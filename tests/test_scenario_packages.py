@@ -128,23 +128,19 @@ def test_the_continuous_chains_are_new_definitions_and_not_edits(repo_root):
 # ------------------------------------------------- repository-wide identity
 
 
-#: Identities this guard found already carrying several different definitions
-#: when it was written, in package sets outside the work item that added it.
-#: They are named here so the guard can be repository-wide from the start
-#: without either silently blessing the discrepancy or silently repairing
-#: fixtures another work item owns. The assertion is one-directional — an
-#: identity may leave this list by being repaired, and nothing may join it —
-#: so the guard tightens over time and can never be loosened by accident.
+#: Identities allowed to carry several different definitions at once.
 #:
-#: `fixtures/hsa/handoff/swing_proximity.atomic.yaml` declares parameters
-#: `max_distance_atr` and `swing_lookback_bars` where the promoted definition
-#: declares `max_distance` and `lookback_bars`, reads an extra market fact, and
-#: expires after a different number of frames. `gold_staged_sequence@1.0.0`
-#: differs between the same two directories in its LOCATION required_fields.
-#: Both are reported to the PL rather than changed here.
-KNOWN_UNRESOLVED_IDENTITIES = frozenset(
-    {"gold_staged_sequence@1.0.0", "swing_proximity@1.0.0"}
-)
+#: It is empty, and staying empty is the point. Two identities were named here
+#: when the guard was written — `swing_proximity@1.0.0` and
+#: `gold_staged_sequence@1.0.0`, both diverging between
+#: `fixtures/hsa/handoff/` and `fixtures/strategy_packages/valid/` — because
+#: the guard could then be repository-wide without silently repairing fixtures
+#: another work item owned. Both have since been repaired: the handoff copies
+#: now carry the promoted definitions exactly. The assertion below stays
+#: one-directional — an identity may leave this list by being repaired, and
+#: nothing may join it — so the guard remains armed and can never be loosened
+#: by accident.
+KNOWN_UNRESOLVED_IDENTITIES: frozenset[str] = frozenset()
 
 
 def every_package_file(repo_root) -> list[Path]:

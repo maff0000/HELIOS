@@ -2,6 +2,11 @@
 #
 # Every component resolves to an atomic package in this same handoff, at the
 # exact version named.
+#
+# The definition below is deliberately identical to the promoted package at
+# fixtures/strategy_packages/valid/gold_sequence.chain.yaml. A promoted
+# (strategy_id, strategy_version) is immutable per docs/INTEGRATION.md 4.2, so
+# every file claiming gold_staged_sequence@1.0.0 must describe one strategy.
 schema_version: helios.strategy_package/1.0.0
 kind: CHAIN
 identity:
@@ -22,7 +27,7 @@ inputs:
   - role: LOCATION
     timeframe: H1
     lookback: 24
-    required_fields: [high, low, close, atr_14]
+    required_fields: [high, low, close]
   - role: CONFIRMATION
     timeframe: M15
     lookback: 1
