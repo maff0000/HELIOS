@@ -1,0 +1,44 @@
+# Copied verbatim from fixtures/strategy_packages/valid/. A handoff must be
+# self-contained - every chain in this directory resolves against this
+# directory alone - and a promoted (strategy_id, strategy_version) is
+# immutable, so this file must describe exactly the same strategy as every
+# other copy of that identity in the repository.
+# tests/test_scenario_packages.py holds every copy to one definition.
+# Atomic strategy package: breakout of the recent range on the trigger timeframe.
+schema_version: helios.strategy_package/1.0.0
+kind: ATOMIC
+identity:
+  strategy_id: range_breakout
+  strategy_version: 1.0.0
+metadata:
+  title: Range breakout
+  description: Close beyond the highest high / lowest low of the lookback window.
+  authored_by: HSA
+  authored_at_utc: 2026-01-02T09:05:00Z
+inputs:
+  - role: TRIGGER
+    timeframe: M5
+    lookback: 20
+    required_fields: [high, low, close, atr_14]
+parameters:
+  lookback_bars:
+    type: INTEGER
+    value: 20
+    minimum: 2
+    maximum: 500
+  min_atr_multiple:
+    type: DECIMAL
+    value: 0.5
+    minimum: 0
+    maximum: 10
+direction:
+  mode: DIRECTIONAL
+  resolution: STRATEGY_LOCAL
+timing:
+  evaluate_on: CLOSED_FRAME
+persistence:
+  min_matched_frames: 1
+  weakening_enabled: false
+expiry:
+  mode: DURATION
+  duration_seconds: 3600

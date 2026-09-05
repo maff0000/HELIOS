@@ -36,12 +36,14 @@ Built and tested:
 * the FALCON publication boundary — canonical JSON lines to a file, a stream or
   memory, with schema-version negotiation;
 * the HERMES, HSA and CER boundary contracts, with fixtures for each;
-* external configuration and structured UTC logging.
+* external configuration and structured UTC logging;
+* the Docker-first runtime — an ordered market-fact feed, continuous concurrent
+  evaluation, health and readiness with no listening socket, clean shutdown and
+  restart, and a time-aligned scenario that drives the whole vertical slice.
 
-Not built yet: the Docker runtime. Absent by design: NEO decision logic, TRON
-execution, account risk, broker integration, backtesting, strategy auto-tuning,
-a dashboard, an evidence store (CER owns that) and any reusable indicator
-library (HERMES owns indicators).
+Absent by design: NEO decision logic, TRON execution, account risk, broker
+integration, backtesting, strategy auto-tuning, a dashboard, an evidence store
+(CER owns that) and any reusable indicator library (HERMES owns indicators).
 
 ## Getting started
 
@@ -53,6 +55,17 @@ pytest
 ```
 
 Requires Python 3.11+ and [gitleaks](https://github.com/gitleaks/gitleaks).
+
+To run the service itself:
+
+```sh
+docker build -t helios:dev .
+docker run -d --name helios --env-file <your settings> helios:dev
+docker exec helios python3 -m helios.runtime.health
+```
+
+`config/helios.example.toml` lists every setting; nothing is defaulted in
+source. See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
 
 **Run `./ops/bootstrap` before your first commit.** This repository is public;
 the pre-commit hook scans staged content for secrets and refuses the commit if
@@ -80,7 +93,12 @@ in one error. See [`config/helios.example.toml`](config/helios.example.toml).
 * [`docs/COMPOSITION.md`](docs/COMPOSITION.md) — the chain engine: the four
   primitives, direction and timing semantics, and chain provenance.
 * [`docs/FIXTURES.md`](docs/FIXTURES.md) — every checked-in fixture set and what
-  each one proves.
+  each one proves, including the time-aligned scenario the runtime evaluates.
+* [`docs/RUNTIME.md`](docs/RUNTIME.md) — the running service: the evaluation
+  loop, the ordered feed, configuration, health and readiness, shutdown,
+  restart and logging.
+* [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) — building and running the image,
+  and what differs when the same proven image is promoted.
 * [`docs/schema/strategy_package.schema.json`](docs/schema/strategy_package.schema.json)
   — JSON Schema for strategy packages, generated from the model and
   drift-checked by a test.

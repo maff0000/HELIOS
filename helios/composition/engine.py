@@ -46,6 +46,7 @@ from helios.contracts.state import (
     transition,
 )
 from helios.contracts.timeframe import Timeframe
+from helios.determinism import deterministic_arithmetic
 from helios.errors import ContractViolationError, StrategySpecError
 from helios.observability.logging import get_logger
 from helios.spec.model import (
@@ -60,7 +61,9 @@ from helios.spec.model import (
 )
 
 #: Precision at which chain strength is published. Fixed so that two identical
-#: evaluations serialise to identical bytes.
+#: evaluations serialise to identical bytes. The arithmetic that produces it
+#: runs in :data:`helios.determinism.ARITHMETIC_CONTEXT` rather than whatever
+#: context the host installed — see :func:`_strength`.
 _STRENGTH_EXPONENT = Decimal("0.0001")
 
 _LOGGER = get_logger("composition")
@@ -457,77 +460,83 @@ class ChainEngine:
         components: Sequence[StrategyStateEnvelope] = (),
         previous: Optional[StrategyStateEnvelope] = None,
     ) -> StrategyStateEnvelope:
-        """Publish this chain's normalised state for one evaluation."""
-        subject = _coerce_instrument(instrument)
-        now = ensure_utc(evaluated_at_utc, field="evaluated_at_utc")
-        self._check_previous(previous, subject)
+        """Publish this chain's normalised state for one evaluation.
 
-        carry_in = previous.state if previous is not None else StrategyState.DORMANT
-        pinned = (
-            previous.direction
-            if previous is not None and previous.state in LIVE_STATES
-            else None
-        )
-        assessment = self.assess(
-            instrument=subject,
-            evaluated_at_utc=now,
-            components=components,
-            pinned_direction=pinned,
-        )
+        Runs inside the engine's fixed decimal context, so the chain's
+        derived measures do not depend on whatever decimal context the host
+        process installed. See :mod:`helios.determinism`.
+        """
+        with deterministic_arithmetic():
+            subject = _coerce_instrument(instrument)
+            now = ensure_utc(evaluated_at_utc, field="evaluated_at_utc")
+            self._check_previous(previous, subject)
 
-        streak_in = _previous_streak(previous)
-        state, streak, note = self._resolve_state(
-            carry_in=carry_in,
-            streak=streak_in,
-            assessment=assessment,
-            previous=previous,
-            now=now,
-        )
-        # Proves the published sequence never leaves the documented table.
-        transition(carry_in, state, at_utc=now, reason=note)
+            carry_in = previous.state if previous is not None else StrategyState.DORMANT
+            pinned = (
+                previous.direction
+                if previous is not None and previous.state in LIVE_STATES
+                else None
+            )
+            assessment = self.assess(
+                instrument=subject,
+                evaluated_at_utc=now,
+                components=components,
+                pinned_direction=pinned,
+            )
 
-        lifecycle = advance_lifecycle(_previous_lifecycle(previous), state, now)
-        validity = self._validity(state, lifecycle, previous, now, note)
-        explanation = render_explanation(
-            identity=self._identity,
-            primitive=self._chain.primitive,
-            instrument=str(subject),
-            state=state,
-            assessment=assessment,
-            resolution_note=note,
-        )
-        envelope = StrategyStateEnvelope.with_lifecycle(
-            lifecycle,
-            kind=EnvelopeKind.CHAIN,
-            strategy_id=self._identity.strategy_id,
-            strategy_version=self._identity.strategy_version,
-            chain_id=ChainId(str(self._identity.strategy_id)),
-            chain_version=self._identity.strategy_version,
-            instrument=subject,
-            state=state,
-            direction=assessment.direction,
-            strength=_strength(assessment),
-            evidence=self._evidence(assessment, streak),
-            explanation=explanation,
-            validity=validity,
-            components=self._provenance(assessment, now),
-            inputs=_aggregate_inputs(assessment),
-        )
-        _LOGGER.debug(
-            "chain evaluated",
-            extra={
-                "chain_id": str(self._identity.strategy_id),
-                "chain_version": str(self._identity.strategy_version),
-                "chain_primitive": str(self._chain.primitive),
-                "chain_state": str(state),
-                "chain_direction": str(assessment.direction),
-                "components_satisfied": assessment.satisfied_count,
-                "components_declared": assessment.declared_count,
-                "evaluated_at_utc": now,
-                "subject_instrument": str(subject),
-            },
-        )
-        return envelope
+            streak_in = _previous_streak(previous)
+            state, streak, note = self._resolve_state(
+                carry_in=carry_in,
+                streak=streak_in,
+                assessment=assessment,
+                previous=previous,
+                now=now,
+            )
+            # Proves the published sequence never leaves the documented table.
+            transition(carry_in, state, at_utc=now, reason=note)
+
+            lifecycle = advance_lifecycle(_previous_lifecycle(previous), state, now)
+            validity = self._validity(state, lifecycle, previous, now, note)
+            explanation = render_explanation(
+                identity=self._identity,
+                primitive=self._chain.primitive,
+                instrument=str(subject),
+                state=state,
+                assessment=assessment,
+                resolution_note=note,
+            )
+            envelope = StrategyStateEnvelope.with_lifecycle(
+                lifecycle,
+                kind=EnvelopeKind.CHAIN,
+                strategy_id=self._identity.strategy_id,
+                strategy_version=self._identity.strategy_version,
+                chain_id=ChainId(str(self._identity.strategy_id)),
+                chain_version=self._identity.strategy_version,
+                instrument=subject,
+                state=state,
+                direction=assessment.direction,
+                strength=_strength(assessment),
+                evidence=self._evidence(assessment, streak),
+                explanation=explanation,
+                validity=validity,
+                components=self._provenance(assessment, now),
+                inputs=_aggregate_inputs(assessment),
+            )
+            _LOGGER.debug(
+                "chain evaluated",
+                extra={
+                    "chain_id": str(self._identity.strategy_id),
+                    "chain_version": str(self._identity.strategy_version),
+                    "chain_primitive": str(self._chain.primitive),
+                    "chain_state": str(state),
+                    "chain_direction": str(assessment.direction),
+                    "components_satisfied": assessment.satisfied_count,
+                    "components_declared": assessment.declared_count,
+                    "evaluated_at_utc": now,
+                    "subject_instrument": str(subject),
+                },
+            )
+            return envelope
 
     def _check_previous(
         self, previous: Optional[StrategyStateEnvelope], subject: Instrument
@@ -802,11 +811,20 @@ def _previous_streak(previous: Optional[StrategyStateEnvelope]) -> int:
 
 
 def _strength(assessment: ChainAssessment) -> Decimal:
-    """The share of declared components that hold, as an exact decimal."""
+    """The share of declared components that hold, as an exact decimal.
+
+    Computed in the engine's fixed decimal context. Under the AMBIENT context
+    this is not merely a question of which digits come out: ``3/4`` quantised
+    to four places needs four significant digits, so under an installed
+    ``prec=3`` context the quantisation raises ``InvalidOperation`` and a chain
+    that should have published ``0.7500`` publishes nothing at all. A published
+    state must not depend on decimal state HELIOS does not control.
+    """
     if not assessment.declared_count:  # pragma: no cover - spec requires two
         return Decimal(0)
-    share = Decimal(assessment.satisfied_count) / Decimal(assessment.declared_count)
-    return share.quantize(_STRENGTH_EXPONENT)
+    with deterministic_arithmetic():
+        share = Decimal(assessment.satisfied_count) / Decimal(assessment.declared_count)
+        return share.quantize(_STRENGTH_EXPONENT)
 
 
 def _aggregate_inputs(assessment: ChainAssessment) -> tuple[InputFreshness, ...]:

@@ -461,6 +461,7 @@ boundary mechanically across this package like every other.
 
 ## 12. What this layer deliberately does not contain
 
-The atomic strategies themselves, any indicator computation, chain-of-chain
-recursion, the Docker runtime, NEO/TRON logic, account risk, backtesting,
-auto-tuning, dashboards, and an evidence store.
+The atomic strategies themselves (`docs/ATOMS.md`), any indicator computation,
+chain-of-chain recursion, the running service (`docs/RUNTIME.md`), NEO/TRON
+logic, account risk, backtesting, auto-tuning, dashboards, and an evidence
+store.

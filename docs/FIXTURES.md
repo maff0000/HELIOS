@@ -9,6 +9,10 @@ fixtures/hsa/               whole HSA handoffs              (§3)
 fixtures/falcon/            published payloads FALCON reads (§4)
 ```
 
+A fifth set cuts across those: `fixtures/hermes/scenario/` and
+`fixtures/strategy_packages/scenario/` are the time-aligned facts and the
+strategy handoff the **running service** evaluates (§5).
+
 ## 1. HERMES fixtures
 
 Canonical, deterministic, hand-checkable market facts for `XAU_USD` across the
@@ -96,9 +100,12 @@ would assert it.
 | `xau_usd_m15.json` | M15 | 16 | bearish rejection wick at frame 5 (upper wick 0.846 of range), bullish at frame 9 (lower wick 0.857), no-wick bearish at frame 3, no-wick bullish at frame 12; every other frame under 0.60 |
 | `xau_usd_m5.json` | M5 | 24 | range high exactly 2410.00 across frames 0–17, breakout at frame 18 (close 2413.50); momentum `rsi_14` 68→72 across 70; volatility `atr_14` doubles 1.20→2.40 |
 
-Together they form an ordered temporal sequence across H4/H1/M15/M5 — enough
-for a multi-timeframe semantic chain without any timeframe being hard-coded
-globally.
+Each of these proves **one atom** over one hand-checked series, and each is
+judged against its own `reference_now_utc`. That is deliberate and it has a
+consequence worth stating here rather than discovering later: no single instant
+makes all four simultaneously fresh, so they cannot serve a multi-timeframe
+chain evaluated end to end over real windows. The time-aligned set in §5 exists
+for that, and leaves these untouched.
 
 ### 1.5 Malformed fixtures
 
@@ -177,3 +184,126 @@ the real publication path (`helios.integration.exemplars`) and
 cannot drift from what HELIOS actually publishes.
 
 See `docs/INTEGRATION.md` §1.
+
+## 5. The vertical-slice scenario
+
+```
+fixtures/hermes/scenario/            time-aligned facts, four timeframes  (§5.1)
+fixtures/strategy_packages/scenario/ the handoff the runtime is configured with (§5.4)
+```
+
+This is the set the running service evaluates (`docs/RUNTIME.md`), and it
+exists because of a gap the single-atom fixtures could not close.
+
+### 5.1 Why a second fact set exists
+
+Each fixture in §1.4 was authored to prove **one atom in isolation**, and each
+carries its own `reference_now_utc`: H1 at `2026-01-06T00:01Z`, M15 and M5 at
+`2026-01-06T16:01Z`, H4 at `2026-01-07T00:01Z`. That is correct for what they
+are and fatal for what the PID's vertical slice needs — **no single evaluation
+instant makes them simultaneously fresh**, so no multi-timeframe chain could
+ever be evaluated end to end over real market-fact windows.
+
+The §1.4 fixtures are therefore left exactly as they are; the atom tests assert
+their precise contents. This set is new, and it is *coherent* rather than
+merely simultaneous:
+
+* **one clock** — one instrument, one reference instant
+  (`2026-03-02T16:01:00Z`), one publication delay (60 seconds after each bar's
+  close), and every timeframe fresh at every evaluated instant under the
+  configured policy;
+* **one market** — M5 is the base truth and the coarser series are its **exact
+  aggregate** wherever they overlap: same open, same high, same low, same
+  close, same volume. Four documents describing four different markets would be
+  four fixtures, not a scenario;
+* **stated expectations** — each document declares what it proves, and the
+  numbers behind those claims are checked in `tests/test_scenario_fixtures.py`,
+  so a document and its description cannot drift apart.
+
+Indicators are **not** aggregated. They are supplied HERMES facts chosen for
+legibility, exactly as in §1.3 — HELIOS consumes indicators and never computes
+them, and re-deriving them here would assert the opposite.
+
+### 5.2 What the documents hold
+
+| file | timeframe | frames | span (bar opens) | supplies |
+|---|---|---|---|---|
+| `xau_usd_aligned_h4.json` | H4 | 8 | 2026-03-01 08:00 → 03-02 12:00 | `CONTEXT`: `ema_50` − `ema_200` runs −6.00, −5.00, −4.00, −3.00, −2.50, −1.00, **+1.25**, +2.00 — one crossing, on the 03-02 08:00 bar |
+| `xau_usd_aligned_h1.json` | H1 | 29 | 2026-03-01 11:00 → 03-02 15:00 | `LOCATION`: swing high **2416.00** (03-01 16:00), swing low **2380.00** (03-02 00:00); the 12:00 bar closes 2408.00, then 2411.50, 2413.00, 2414.00 — each nearer the high, none past it |
+| `xau_usd_aligned_m15.json` | M15 | 28 | 2026-03-02 09:00 → 15:45 | `CONFIRMATION`: dominant **lower** wicks on the 13:30 (0.862069), 13:45 (0.642857) and 14:00 (0.857143) bars; every other bar under 0.60 either side |
+| `xau_usd_aligned_m5.json` | M5 | 84 | 2026-03-02 09:00 → 15:55 | `TRIGGER`: the 13:55 bar closes **2411.50**, clearing the prior 19-bar range high **2408.50** by more than `0.5 × atr_14 2.40`. No other bar clears its own prior range |
+
+The narrative is one session, told at four resolutions: a 4H trend change into
+the London afternoon, price grinding up toward a swing high a day old, buyers
+repeatedly defending a shelf around 2398–2402 on the quarter-hour, and finally
+a five-minute break of the range those defences built.
+
+### 5.3 The evaluation instants
+
+A bar's facts arrive 60 seconds after it closes, so the service evaluates at
+`close + 60s` of every M5 bar. The replay begins at the first instant where
+every timeframe can satisfy the deepest lookback any strategy **declared** of it
+— H1 needs 24 bars, M5 needs 20 — which is `2026-03-02T11:01:00Z`, and runs to
+`16:01:00Z`: **61 evaluations**, five minutes apart.
+
+At every one of them all four timeframes are fresh. At the last, the H4 bar is
+2 hours 1 minute old against a limit of 6 hours 1 minute; the other three are
+60 seconds old.
+
+### 5.4 The handoff it is evaluated against
+
+`fixtures/strategy_packages/scenario/` is self-contained: the four atomic
+definitions from §2, **copied verbatim** — a promoted identity is immutable, and
+`tests/test_scenario_packages.py` holds every copy in the repository to one
+definition fingerprint — plus two chains that exist only here:
+
+| package | primitive | why it is a new identity |
+|---|---|---|
+| `gold_continuous_sequence@1.0.0` | `SEQUENCE`, `CONTEXT`→H4, `LOCATION`→H1, `CONFIRMATION`→M15, `TRIGGER`→M5 | every component is satisfied by `MATCHED` **or** `ACTIVE` |
+| `gold_continuous_context_trigger@1.0.0` | `CONTEXT_TRIGGER`, `CONTEXT`→H4, `TRIGGER`→M5 | the same, plus a `FRAMES` expiry counted in frames of the finest timeframe it binds |
+
+That one difference matters because HELIOS evaluates **continuously**, far more
+often than a component's own bar changes. A fifteen-minute confirmation that
+matched at 13:46 publishes `ACTIVE` on the next four evaluations against the
+same still-current bar; the match is no less true, it is simply no longer new.
+A chain accepting only `MATCHED` could hold for exactly one evaluation, which
+describes a chain nobody could act on. A behaviour change is a **new**
+definition, so these carry new identities rather than editing a promoted one.
+
+### 5.5 What the slice does
+
+Every state below is asserted in `tests/test_vertical_slice.py`, and every
+number the states depend on is checked independently in
+`tests/test_scenario_fixtures.py`.
+
+```
+instant   golden_cross  swing_prox.  rejection_wick  range_breakout   SEQUENCE   CONTEXT_TRIGGER
+11:01     DORMANT       DORMANT      DORMANT         DORMANT          DORMANT    DORMANT
+12:01     MATCHED       DORMANT      DORMANT         DORMANT          FORMING    FORMING
+13:01     ACTIVE        MATCHED      DORMANT         DORMANT          FORMING    FORMING
+13:46     ACTIVE        ACTIVE       MATCHED         DORMANT          FORMING    FORMING
+14:01     ACTIVE        ACTIVE       ACTIVE          MATCHED          MATCHED    MATCHED
+14:06     ACTIVE        ACTIVE       ACTIVE          ACTIVE           ACTIVE     ACTIVE
+14:31     ACTIVE        ACTIVE       INVALID         ACTIVE           INVALID    ACTIVE
+15:06     ACTIVE        ACTIVE       DORMANT         EXPIRED          FORMING    EXPIRED
+16:01     ACTIVE        ACTIVE       DORMANT         DORMANT          FORMING    FORMING
+```
+
+The stages establish in the order the `SEQUENCE` declares — `CONTEXT` at 12:01,
+`LOCATION` at 13:01, `CONFIRMATION` at 13:46, `TRIGGER` at 14:01, a span of two
+hours inside the declared eight-hour ordering window — and all four are still
+holding at 14:01, which is what makes the chain match `LONG` with a strength of
+`1.0000` and all four timeframes fresh.
+
+The two chains then resolve **differently, on purpose**:
+
+* the `SEQUENCE` goes `INVALID` at 14:31, when the M15 bar that becomes current
+  carries no dominant wick and its confirmation is voided. The explanation names
+  `rejection_wick@1.0.0` and why;
+* the `CONTEXT_TRIGGER` goes `EXPIRED` at 15:06 — its own declared validity
+  (12 frames of M5, one hour from 14:01) ran out. Nothing broke.
+
+That is the state model's distinction between "something broke" and "time ran
+out", demonstrated on one feed rather than asserted. Both then rearm through
+`DORMANT` and settle at `FORMING`, because the H4 context and the H1 location
+are still holding at the end of the session.

@@ -43,6 +43,11 @@ from helios.publish.config import (
     SUPPORTED_STREAMS,
     PublicationConfig,
 )
+from helios.runtime.config import (
+    REQUIRED_FOR_RUNTIME,
+    SUPPORTED_FEED_END_ACTIONS,
+    RuntimeConfig,
+)
 
 #: Environment variable naming the optional TOML configuration file.
 CONFIG_FILE_ENV_VAR = "HELIOS_CONFIG_FILE"
@@ -89,6 +94,21 @@ OPTIONAL_SETTINGS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
     ("strategy_package_dir", "HELIOS_STRATEGY_PACKAGE_DIR", ("strategies", "package_dir")),
     ("publication_path", "HELIOS_PUBLICATION_PATH", ("publication", "path")),
     ("publication_stream", "HELIOS_PUBLICATION_STREAM", ("publication", "stream")),
+    # The running service's own settings. Optional HERE, and required by
+    # HeliosConfig.runtime(): a contract test or a one-off script is a valid
+    # HELIOS process with no feed and no status file, and demanding these of it
+    # would be configuration theatre. See helios/runtime/config.py.
+    ("runtime_instrument", "HELIOS_RUNTIME_INSTRUMENT", ("runtime", "instrument")),
+    ("runtime_feed_dir", "HELIOS_RUNTIME_FEED_DIR", ("runtime", "feed_dir")),
+    ("runtime_tick_seconds", "HELIOS_RUNTIME_TICK_SECONDS", ("runtime", "tick_seconds")),
+    ("runtime_on_feed_end", "HELIOS_RUNTIME_ON_FEED_END", ("runtime", "on_feed_end")),
+    ("runtime_status_file", "HELIOS_RUNTIME_STATUS_FILE", ("runtime", "status_file")),
+    (
+        "runtime_health_max_age_seconds",
+        "HELIOS_RUNTIME_HEALTH_MAX_AGE_SECONDS",
+        ("runtime", "health_max_age_seconds"),
+    ),
+    ("runtime_max_cycles", "HELIOS_RUNTIME_MAX_CYCLES", ("runtime", "max_cycles")),
 )
 
 #: Precedence of the layer a setting came from. The environment wins over the
@@ -114,6 +134,59 @@ class HeliosConfig:
     publication_sink: str
     publication_path: Optional[Path]
     publication_stream: Optional[str]
+    runtime_instrument: Optional[str]
+    runtime_feed_dir: Optional[Path]
+    runtime_tick_seconds: Optional[int]
+    runtime_on_feed_end: Optional[str]
+    runtime_status_file: Optional[Path]
+    runtime_health_max_age_seconds: Optional[int]
+    runtime_max_cycles: Optional[int]
+
+    def runtime(self) -> RuntimeConfig:
+        """The settings the running service needs, or a loud refusal.
+
+        ``load_config`` has already checked the shape of everything supplied.
+        What it cannot know is whether this process intends to *run*: a
+        contract test is a perfectly valid HELIOS process with no feed and no
+        status file. So presence is asserted here, at the moment the service
+        starts, and every absent setting is reported at once — an operator
+        fixes one deployment rather than discovering faults one restart at a
+        time, which is the same promise ``load_config`` makes.
+        """
+        values = {
+            "instrument": self.runtime_instrument,
+            "feed_dir": self.runtime_feed_dir,
+            "package_dir": self.strategy_package_dir,
+            "tick_seconds": self.runtime_tick_seconds,
+            "on_feed_end": self.runtime_on_feed_end,
+            "status_file": self.runtime_status_file,
+            "health_max_age_seconds": self.runtime_health_max_age_seconds,
+        }
+        missing = [
+            f"{attribute}: required to run the HELIOS service "
+            f"(set {env_var} or {toml_path} in the config file)"
+            for attribute, env_var, toml_path in REQUIRED_FOR_RUNTIME
+            if values[attribute] is None
+        ]
+        if missing:
+            raise ConfigurationError(
+                "incomplete HELIOS runtime configuration", problems=sorted(missing)
+            )
+        assert self.runtime_instrument is not None
+        assert self.runtime_feed_dir is not None and self.strategy_package_dir is not None
+        assert self.runtime_tick_seconds is not None and self.runtime_on_feed_end is not None
+        assert self.runtime_status_file is not None
+        assert self.runtime_health_max_age_seconds is not None
+        return RuntimeConfig(
+            instrument=self.runtime_instrument,
+            feed_dir=self.runtime_feed_dir,
+            package_dir=self.strategy_package_dir,
+            tick_seconds=self.runtime_tick_seconds,
+            on_feed_end=self.runtime_on_feed_end,
+            status_file=self.runtime_status_file,
+            health_max_age_seconds=self.runtime_health_max_age_seconds,
+            max_cycles=self.runtime_max_cycles,
+        )
 
     def publication(self) -> PublicationConfig:
         """The publication destination this deployment was configured with."""
@@ -239,6 +312,18 @@ def _as_overrides(
         if seconds is not None:
             result[timeframe] = timedelta(seconds=seconds)
     return MappingProxyType(result)
+
+
+def _as_directory(value: Any, *, name: str, problems: list[str]) -> Optional[Path]:
+    """A path that must already be a directory. HELIOS creates no input it was
+    not configured for, and a mistyped path must fail at startup."""
+    if value is None or not str(value).strip():
+        return None
+    path = Path(str(value).strip())
+    if not path.is_dir():
+        problems.append(f"{name}: not a directory ({path})")
+        return None
+    return path
 
 
 def _resolve_publication(
@@ -421,12 +506,66 @@ def load_config(
         raw, source, problems
     )
 
-    package_dir: Optional[Path] = None
-    if raw["strategy_package_dir"] is not None:
-        package_dir = Path(str(raw["strategy_package_dir"]))
-        if not package_dir.is_dir():
+    package_dir = _as_directory(
+        raw["strategy_package_dir"], name="strategy_package_dir", problems=problems
+    )
+    runtime_feed_dir = _as_directory(
+        raw["runtime_feed_dir"], name="runtime_feed_dir", problems=problems
+    )
+
+    runtime_instrument: Optional[str] = None
+    if raw["runtime_instrument"] is not None and str(raw["runtime_instrument"]).strip():
+        runtime_instrument = str(raw["runtime_instrument"]).strip()
+
+    runtime_tick_seconds = (
+        _as_int(
+            raw["runtime_tick_seconds"],
+            name="runtime_tick_seconds",
+            problems=problems,
+            minimum=0,
+        )
+        if raw["runtime_tick_seconds"] is not None
+        else None
+    )
+    runtime_max_cycles = (
+        _as_int(
+            raw["runtime_max_cycles"], name="runtime_max_cycles", problems=problems, minimum=1
+        )
+        if raw["runtime_max_cycles"] is not None
+        else None
+    )
+    runtime_health_max_age_seconds = (
+        _as_int(
+            raw["runtime_health_max_age_seconds"],
+            name="runtime_health_max_age_seconds",
+            problems=problems,
+            minimum=1,
+        )
+        if raw["runtime_health_max_age_seconds"] is not None
+        else None
+    )
+
+    runtime_on_feed_end: Optional[str] = None
+    if raw["runtime_on_feed_end"] is not None and str(raw["runtime_on_feed_end"]).strip():
+        runtime_on_feed_end = str(raw["runtime_on_feed_end"]).strip().upper()
+        if runtime_on_feed_end not in SUPPORTED_FEED_END_ACTIONS:
             problems.append(
-                f"strategy_package_dir: not a directory ({package_dir})"
+                f"runtime_on_feed_end: expected one of "
+                f"{list(SUPPORTED_FEED_END_ACTIONS)}, received {runtime_on_feed_end!r}"
+            )
+            runtime_on_feed_end = None
+
+    # The status file itself need not exist yet — the service creates it — but
+    # the directory it lives in must, for the same reason the FILE sink refuses
+    # to invent a destination: a mistyped path must fail at startup rather than
+    # leave a health probe reading a file nobody writes.
+    runtime_status_file: Optional[Path] = None
+    if raw["runtime_status_file"] is not None and str(raw["runtime_status_file"]).strip():
+        runtime_status_file = Path(str(raw["runtime_status_file"]).strip())
+        parent = runtime_status_file.parent if str(runtime_status_file.parent) else Path(".")
+        if not parent.is_dir():
+            problems.append(
+                f"runtime_status_file: directory does not exist ({parent})"
             )
 
     if problems:
@@ -438,6 +577,13 @@ def load_config(
     assert grace is not None and allow_incomplete is not None
     assert publication_sink is not None
     return HeliosConfig(
+        runtime_instrument=runtime_instrument,
+        runtime_feed_dir=runtime_feed_dir,
+        runtime_tick_seconds=runtime_tick_seconds,
+        runtime_on_feed_end=runtime_on_feed_end,
+        runtime_status_file=runtime_status_file,
+        runtime_health_max_age_seconds=runtime_health_max_age_seconds,
+        runtime_max_cycles=runtime_max_cycles,
         environment=environment,
         log_level=log_level,
         freshness_max_age_multiplier=multiplier,

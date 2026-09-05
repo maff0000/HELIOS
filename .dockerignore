@@ -1,0 +1,51 @@
+# Keep the build context to what the image is actually built from.
+# A smaller context is faster, but the point here is narrower than that: what is
+# not sent cannot be baked in by accident.
+
+.git/
+.gitignore
+.gitleaks.toml
+.dockerignore
+Dockerfile
+
+# Never send local configuration or anything secret-shaped into a build context.
+.env
+.env.*
+config/local.*
+*.local.toml
+secrets/
+
+# Tests, docs and tooling are not part of the running service.
+tests/
+docs/
+ops/
+scripts/
+PID.md
+README.md
+requirements*.txt
+
+# Caches and build output.
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+build/
+dist/
+*.egg-info/
+.venv/
+venv/
+
+# Fact and package sets the image does not ship. Only the scenario handoff and
+# its time-aligned facts are copied; the single-atom and deliberately-malformed
+# fixtures exist to be tested against, not to be deployed.
+fixtures/falcon/
+fixtures/hsa/
+fixtures/hermes/xau_usd/
+fixtures/hermes/malformed/
+fixtures/hermes/stale/
+fixtures/strategy_packages/valid/
+fixtures/strategy_packages/malformed/

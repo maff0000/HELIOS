@@ -447,9 +447,9 @@ All inherit `HeliosError` and carry a structured `context` mapping.
 ## 9. What HELIOS deliberately does not contain
 
 The atomic strategy framework and the six proof atoms (`docs/ATOMS.md`), the
-composition engine (`docs/COMPOSITION.md`) and the publication boundary
-(`docs/INTEGRATION.md`) are built and consume the vocabulary defined here. The
-Docker runtime is a separate work item and is not built yet.
+composition engine (`docs/COMPOSITION.md`), the publication boundary
+(`docs/INTEGRATION.md`) and the Docker-first runtime (`docs/RUNTIME.md`,
+`docs/DEPLOYMENT.md`) are built and consume the vocabulary defined here.
 
 Absent by design, and enforced: NEO decision logic, TRON execution, account
 risk, broker integration, a backtesting engine, strategy auto-tuning, a

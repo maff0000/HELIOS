@@ -476,7 +476,7 @@ Every expected state sequence in the atom tests was worked out by hand from
 
 ## 8. What this work item deliberately does not contain
 
-Composition and chaining, the Docker runtime, and anything on the PID's
-non-goal list. Also absent by design and enforced: any reusable indicator
+Composition and chaining (`docs/COMPOSITION.md`), the running service
+(`docs/RUNTIME.md`), and anything on the PID's non-goal list. Also absent by design and enforced: any reusable indicator
 library, any parameter-override path around version immutability, and any
 channel through which one strategy could observe another.

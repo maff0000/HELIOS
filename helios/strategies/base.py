@@ -24,7 +24,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from decimal import ROUND_HALF_EVEN, Context, Decimal, localcontext
+from decimal import ROUND_HALF_EVEN, Decimal
 from types import MappingProxyType
 from typing import Any, ClassVar, Mapping, Optional
 
@@ -49,6 +49,7 @@ from helios.contracts.state import (
 )
 from helios.contracts.timeframe import Timeframe
 from helios.contracts.window import MarketFactWindow
+from helios.determinism import deterministic_arithmetic
 from helios.errors import ContractViolationError, StrategySpecError
 from helios.protocols import EvaluationContext, RequiredInput
 from helios.spec.model import EvaluateOn, ExpiryMode, ParameterType, StrategyPackage
@@ -63,10 +64,11 @@ HOLD_RUN_KEY = "consecutive_hold_frames"
 #: Precision every derived ratio is quantised to before publication. Two
 #: processes computing the same ratio must produce the same digits, so the
 #: precision is fixed here rather than inherited from an ambient decimal
-#: context that a caller could have changed.
+#: context that a caller could have changed. The context the arithmetic runs
+#: in is :data:`helios.determinism.ARITHMETIC_CONTEXT` — declared once for the
+#: whole engine, so an atom, the framework and the composition layer cannot
+#: drift apart.
 RATIO_QUANTUM = Decimal("0.000001")
-
-_ARITHMETIC = Context(prec=34, rounding=ROUND_HALF_EVEN)
 
 _ZERO = Decimal(0)
 _ONE = Decimal(1)
@@ -79,7 +81,7 @@ def quantised_ratio(numerator: Decimal, denominator: Decimal) -> Decimal:
             "cannot form a ratio with a zero denominator; a strategy must handle "
             "the degenerate case explicitly rather than divide"
         )
-    with localcontext(_ARITHMETIC):
+    with deterministic_arithmetic():
         return (numerator / denominator).quantize(RATIO_QUANTUM, rounding=ROUND_HALF_EVEN)
 
 
@@ -351,16 +353,27 @@ class AtomicStrategy:
 
         Pure with respect to the context: same context in, same envelope out.
         No I/O, no clock of its own, no hidden state between calls.
+
+        The whole evaluation runs inside the engine's fixed decimal context.
+        An atom's condition is arithmetic over decimal facts — a wick as a
+        fraction of a range, a close measured against a level plus a declared
+        clearance — and under a coarse AMBIENT context that arithmetic would be
+        rounded differently, or would raise, on a host that happened to install
+        one. Fixing the context here rather than inside each atom means an
+        atom's author cannot forget it, and means the concurrent path — where a
+        worker thread starts from the interpreter's default context rather than
+        its caller's — computes exactly what the sequential path computes.
         """
-        window = self._resolve_window(context)
-        policy = self._effective_policy(context.freshness_policy)
-        freshness = require_fresh_frame(
-            window.latest, policy, now_utc=context.evaluated_at_utc
-        )
-        frames = window.lookback(self._lookback)
-        reading = self._read(frames, window, context)
-        verdict = self.assess(reading)
-        return self._publish(context, reading, verdict, freshness)
+        with deterministic_arithmetic():
+            window = self._resolve_window(context)
+            policy = self._effective_policy(context.freshness_policy)
+            freshness = require_fresh_frame(
+                window.latest, policy, now_utc=context.evaluated_at_utc
+            )
+            frames = window.lookback(self._lookback)
+            reading = self._read(frames, window, context)
+            verdict = self.assess(reading)
+            return self._publish(context, reading, verdict, freshness)
 
     # ------------------------------------------------------------- internals
 
