@@ -27,8 +27,10 @@
             "title": "StrategyState",
             "type": "string"
           },
+          "minItems": 1,
           "title": "Required States",
-          "type": "array"
+          "type": "array",
+          "uniqueItems": true
         },
         "role": {
           "anyOf": [
@@ -47,6 +49,7 @@
         "sequence_index": {
           "anyOf": [
             {
+              "minimum": 0,
               "type": "integer"
             },
             {
@@ -78,12 +81,119 @@
     },
     "ChainSpec": {
       "additionalProperties": false,
+      "allOf": [
+        {
+          "else": {
+            "properties": {
+              "components": {
+                "items": {
+                  "properties": {
+                    "sequence_index": {
+                      "type": "null"
+                    }
+                  },
+                  "type": "object"
+                }
+              },
+              "ordering_window_seconds": {
+                "type": "null"
+              }
+            }
+          },
+          "if": {
+            "properties": {
+              "primitive": {
+                "const": "SEQUENCE"
+              }
+            },
+            "required": [
+              "primitive"
+            ]
+          },
+          "then": {
+            "properties": {
+              "components": {
+                "items": {
+                  "properties": {
+                    "sequence_index": {
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "sequence_index"
+                  ],
+                  "type": "object"
+                }
+              },
+              "ordering_window_seconds": {
+                "minimum": 1,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "ordering_window_seconds"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "primitive": {
+                "const": "CONTEXT_TRIGGER"
+              }
+            },
+            "required": [
+              "primitive"
+            ]
+          },
+          "then": {
+            "properties": {
+              "components": {
+                "allOf": [
+                  {
+                    "contains": {
+                      "properties": {
+                        "role": {
+                          "const": "CONTEXT"
+                        }
+                      },
+                      "required": [
+                        "role"
+                      ],
+                      "type": "object"
+                    },
+                    "maxContains": 1,
+                    "minContains": 1
+                  },
+                  {
+                    "contains": {
+                      "properties": {
+                        "role": {
+                          "const": "TRIGGER"
+                        }
+                      },
+                      "required": [
+                        "role"
+                      ],
+                      "type": "object"
+                    },
+                    "maxContains": 1,
+                    "minContains": 1
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ],
       "description": "The composition definition.",
       "properties": {
         "components": {
           "items": {
             "$ref": "#/$defs/ChainComponent"
           },
+          "minItems": 2,
           "title": "Components",
           "type": "array"
         },
@@ -170,6 +280,82 @@
     },
     "ExpirySpec": {
       "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "mode": {
+                "const": "FRAMES"
+              }
+            },
+            "required": [
+              "mode"
+            ]
+          },
+          "then": {
+            "properties": {
+              "duration_seconds": {
+                "type": "null"
+              },
+              "frames": {
+                "minimum": 1,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "frames"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "mode": {
+                "const": "DURATION"
+              }
+            },
+            "required": [
+              "mode"
+            ]
+          },
+          "then": {
+            "properties": {
+              "duration_seconds": {
+                "minimum": 1,
+                "type": "integer"
+              },
+              "frames": {
+                "type": "null"
+              }
+            },
+            "required": [
+              "duration_seconds"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "mode": {
+                "const": "NEVER"
+              }
+            },
+            "required": [
+              "mode"
+            ]
+          },
+          "then": {
+            "properties": {
+              "duration_seconds": {
+                "type": "null"
+              },
+              "frames": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ],
       "description": "When an unresolved match ages out.",
       "properties": {
         "duration_seconds": {
@@ -217,12 +403,14 @@
       "description": "One HERMES input the strategy declares it needs.\n\nThis is the ONLY place a semantic role is bound to a timeframe, and it is\nper package by design.",
       "properties": {
         "lookback": {
+          "minimum": 1,
           "title": "Lookback",
           "type": "integer"
         },
         "max_age_seconds": {
           "anyOf": [
             {
+              "minimum": 1,
               "type": "integer"
             },
             {
@@ -234,10 +422,28 @@
         },
         "required_fields": {
           "items": {
-            "type": "string"
+            "enum": [
+              "atr_14",
+              "close",
+              "complete",
+              "ema_200",
+              "ema_21",
+              "ema_50",
+              "ema_9",
+              "high",
+              "low",
+              "open",
+              "regime",
+              "rsi_14",
+              "session",
+              "source",
+              "volume"
+            ]
           },
+          "minItems": 1,
           "title": "Required Fields",
-          "type": "array"
+          "type": "array",
+          "uniqueItems": true
         },
         "role": {
           "pattern": "^[A-Z][A-Z0-9_]{1,31}$",
@@ -298,14 +504,17 @@
           "type": "string"
         },
         "authored_by": {
+          "minLength": 1,
           "title": "Authored By",
           "type": "string"
         },
         "description": {
+          "minLength": 1,
           "title": "Description",
           "type": "string"
         },
         "title": {
+          "minLength": 1,
           "title": "Title",
           "type": "string"
         }
@@ -426,6 +635,7 @@
       "description": "How long a match must hold, and whether weakening is published.",
       "properties": {
         "min_matched_frames": {
+          "minimum": 1,
           "title": "Min Matched Frames",
           "type": "integer"
         },
@@ -463,7 +673,67 @@
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "Declarative strategy/chain definition consumed by HELIOS and emitted by HSA. Package schema_version: helios.strategy_package/1.0.0.",
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "ATOMIC"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "properties": {
+          "chain": {
+            "type": "null"
+          },
+          "direction": {
+            "properties": {
+              "resolution": {
+                "const": "STRATEGY_LOCAL"
+              }
+            }
+          },
+          "inputs": {
+            "minItems": 1
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "CHAIN"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "properties": {
+          "chain": {
+            "type": "object"
+          },
+          "direction": {
+            "properties": {
+              "resolution": {
+                "const": "FROM_COMPONENTS"
+              }
+            }
+          }
+        },
+        "required": [
+          "chain"
+        ]
+      }
+    }
+  ],
+  "description": "Declarative strategy/chain definition consumed by HELIOS and emitted by HSA. Package schema_version: helios.strategy_package/1.0.0. Passing this schema is necessary but not sufficient: HELIOS also enforces rules Draft 2020-12 cannot express \u2014 a semantic role may be bound to at most one entry in 'inputs'; a parameter's 'value' must lie within the 'minimum'/'maximum' it declares. Load the package through HELIOS to check those.",
   "properties": {
     "chain": {
       "anyOf": [
@@ -514,6 +784,7 @@
       "$ref": "#/$defs/PersistenceSpec"
     },
     "schema_version": {
+      "const": "helios.strategy_package/1.0.0",
       "title": "Schema Version",
       "type": "string"
     },

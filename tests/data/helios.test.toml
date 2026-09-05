@@ -12,6 +12,7 @@ level = "DEBUG"
 max_age_multiplier = "1.5"
 grace_seconds = 60
 allow_incomplete_frames = false
+clock_skew_seconds = 5
 
 [freshness.overrides]
 D1 = 172800

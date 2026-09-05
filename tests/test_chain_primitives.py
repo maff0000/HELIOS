@@ -197,6 +197,33 @@ def test_sequence_does_not_match_outside_its_declared_ordering_window():
     assert envelope.evidence["components_satisfied"] == 3
 
 
+def test_a_chain_level_failure_still_renders_a_well_formed_explanation():
+    """The PID requires an explanation of why a chain did NOT match.
+
+    This is the case where every component holds and the CHAIN-level rule is
+    what failed, so there is no unsatisfied component to name. The renderer
+    appended the "Still holding" clause to an empty failure clause and
+    published a sentence that was only a full stop:
+    ``"... did not match LONG. . Still holding: ..."``.
+    """
+    envelope = evaluate(
+        sequence_chain(window=3600),
+        ordered_components(at(hours=-4), at(hours=-2), at(minutes=-5)),
+    )
+    explanation = envelope.explanation
+    assert envelope.state is StrategyState.FORMING
+    # The defect, stated directly: no empty sentence anywhere.
+    assert ". ." not in explanation
+    assert ".." not in explanation
+    assert all(
+        sentence.strip() for sentence in explanation.split(". ")
+    ), explanation
+    assert "did not match LONG. Still holding:" in explanation
+    # ...and the chain-level reason is still there. Fixing the punctuation must
+    # not quietly drop the only statement of WHY it did not match.
+    assert "exceeds the declared ordering window of 3600s" in explanation
+
+
 def test_a_span_exactly_equal_to_the_ordering_window_is_inside_it():
     envelope = evaluate(
         sequence_chain(window=3600),

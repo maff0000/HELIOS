@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
+
 from decimal import Decimal
 
 import pytest
@@ -9,6 +11,7 @@ import pytest
 from helios.contracts import FreshnessPolicy, Timeframe, require_fresh_frame
 from helios.errors import ContractViolationError, HeliosError, StaleFactError
 from helios.hermes import load_fixture, read_fixture_document
+from helios.hermes.fixture_source import FIXTURE_DOCUMENT_KEYS
 
 CANONICAL = {
     "xau_usd_h4.json": ("H4", 12),
@@ -165,6 +168,10 @@ MALFORMED_CASES = {
     "rsi_out_of_range.json": "rsi_14 outside 0..100",
     "unknown_fixture_schema.json": "unknown fixture_schema_version",
     "ingested_before_observed.json": "ingested before observed",
+    # The document format is closed. Both of these loaded silently while the
+    # loader cherry-picked the keys it wanted instead of using a model.
+    "unknown_document_key.json": "Extra inputs are not permitted",
+    "unknown_frame_key.json": "Extra inputs are not permitted",
 }
 
 
@@ -199,6 +206,7 @@ def test_an_incomplete_last_bar_obeys_the_configured_policy(stale_dir, policy):
         max_age_multiplier=policy.max_age_multiplier,
         grace=policy.grace,
         allow_incomplete_frames=True,
+        clock_skew_tolerance=timedelta(seconds=5),
     )
     verdict = require_fresh_frame(
         fixture.window.latest, permissive, now_utc=fixture.reference_now_utc
@@ -212,6 +220,35 @@ def test_fixture_documents_are_self_describing(canonical_dir):
                 "instrument", "timeframe", "fact_schema_version", "source",
                 "reference_now_utc", "frames"):
         assert key in document
+    # The documented shape and the model enforcing it are one thing.
+    assert set(document) == set(FIXTURE_DOCUMENT_KEYS)
+
+
+def test_the_document_format_is_closed_at_both_levels(canonical_dir, tmp_path):
+    """An unrecognised key is refused wherever it sits, and names the file.
+
+    A cherry-picking loader accepted ``timestamp_utcc`` beside the real key and
+    reported nothing, so an author who mistyped a key they meant to add got a
+    clean load and a fixture that did not say what they thought it said.
+    """
+    import json as _json
+
+    original = _json.loads(
+        (canonical_dir / "xau_usd_h4.json").read_text(encoding="utf-8")
+    )
+    for label, mutate in (
+        ("document", lambda d: d.update({"reference_nowe_utc": "2026-01-07T00:01:00Z"})),
+        ("frame", lambda d: d["frames"][0].update({"timestamp_utcc": "2026-01-05T00:00:00Z"})),
+    ):
+        document = _json.loads(_json.dumps(original))
+        mutate(document)
+        path = tmp_path / f"{label}.json"
+        path.write_text(_json.dumps(document), encoding="utf-8")
+        with pytest.raises(ContractViolationError) as caught:
+            read_fixture_document(path)
+        problems = caught.value.context["problems"]
+        assert any(item["type"] == "extra_forbidden" for item in problems), label
+        assert caught.value.context["origin"] == str(path), label
 
 
 def test_no_fixture_contains_credentials(request):

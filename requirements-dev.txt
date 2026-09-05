@@ -2,3 +2,15 @@
 
 # HELIOS development/test dependencies.
 pytest>=8,<10
+
+# tests/test_packaging.py builds a real distribution in-process to prove the
+# reference strategy packages ship with the code. setuptools' build_meta
+# backend loads its bdist_wheel entry point from this distribution, so without
+# it those two tests ERROR on a clean install rather than run.
+wheel>=0.38
+
+# tests/test_spec_packages.py validates the checked-in
+# docs/schema/strategy_package.schema.json with a real Draft 2020-12 validator.
+# The schema is the artefact an HSA author targets; asserting on the Python
+# model instead would say nothing about what that author is checked against.
+jsonschema>=4.10,<5

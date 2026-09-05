@@ -275,7 +275,7 @@ def test_a_config_file_supplies_the_same_settings(tmp_path):
     assert config.path == tmp_path / "from-file.jsonl"
 
 
-def test_the_environment_wins_over_the_config_file(tmp_path):
+def test_the_environment_takes_precedence_over_the_config_file(tmp_path):
     """One image everywhere; only the injected environment differs."""
     config_file = tmp_path / "helios.toml"
     config_file.write_text(

@@ -411,6 +411,7 @@ def test_a_closed_frame_package_refuses_a_forming_bar_a_deployment_would_accept(
     permissive = FreshnessPolicy(
         max_age_multiplier="1.5", grace=timedelta(seconds=60),
         allow_incomplete_frames=True,
+        clock_skew_tolerance=timedelta(seconds=5),
     )
     atom = build(package_for("golden_cross"))
     fixture, window = fixture_window("xau_usd_h4_incomplete_last_bar", stale=True)

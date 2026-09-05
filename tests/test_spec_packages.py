@@ -263,7 +263,170 @@ def test_the_checked_in_schema_matches_the_model(repo_root):
 
 
 def test_the_schema_enumerates_the_known_fact_fields(repo_root):
-    """HSA must be able to see which HERMES facts it may require."""
+    """HSA must be able to see which HERMES facts it may require.
+
+    Asserted against the PUBLISHED document. This previously asserted on
+    ``FACT_FIELDS``, a Python constant — which is true whatever the schema
+    says, so it never tested the property its own docstring claims.
+    """
     schema = json.loads((repo_root / SCHEMA_PATH).read_text(encoding="utf-8"))
     assert "InputRequirement" in schema["$defs"]
-    assert set(FACT_FIELDS) >= {"close", "ema_50", "ema_200", "atr_14", "rsi_14"}
+    published = schema["$defs"]["InputRequirement"]["properties"]["required_fields"]
+    assert published["items"]["enum"] == sorted(FACT_FIELDS)
+    assert set(published["items"]["enum"]) >= {
+        "close", "ema_50", "ema_200", "atr_14", "rsi_14"
+    }
+
+
+# ------------------------------------ the published schema, under a real validator
+#
+# The schema is the artefact an HSA author targets. Asserting things about the
+# Python model tells us nothing about what that author is checked against, so
+# everything below runs the CHECKED-IN document through a real Draft 2020-12
+# validator against the same fixtures the Python loader is held to.
+
+
+def _as_json_document(path):
+    """The fixture as an HSA author would submit it: plain JSON types.
+
+    The YAML fixtures use unquoted timestamps, which YAML types as datetime and
+    JSON has no notion of. Normalising here rather than loading through HELIOS
+    is deliberate: this test must not depend on the code it is checking.
+    """
+    import datetime as _datetime
+    import decimal as _decimal
+
+    import yaml as _yaml
+
+    def plain(value):
+        if isinstance(value, dict):
+            return {key: plain(item) for key, item in value.items()}
+        if isinstance(value, list):
+            return [plain(item) for item in value]
+        if isinstance(value, _datetime.datetime):
+            return value.astimezone(_datetime.timezone.utc).strftime(
+                "%Y-%m-%dT%H:%M:%SZ"
+            )
+        if isinstance(value, _decimal.Decimal):
+            return float(value)
+        return value
+
+    text = path.read_text(encoding="utf-8")
+    document = json.loads(text) if path.suffix == ".json" else _yaml.safe_load(text)
+    return plain(document)
+
+
+@pytest.fixture(scope="module")
+def published_validator(repo_root):
+    from jsonschema import Draft202012Validator
+
+    schema = json.loads((repo_root / SCHEMA_PATH).read_text(encoding="utf-8"))
+    Draft202012Validator.check_schema(schema)
+    return Draft202012Validator(schema)
+
+
+#: Every legitimate package checked into this repository. A schema that rejects
+#: work HSA is entitled to submit is worse than one that is too permissive.
+LEGITIMATE_PACKAGE_DIRS = (
+    "fixtures/strategy_packages/valid",
+    "fixtures/strategy_packages/scenario",
+    "fixtures/hsa/handoff",
+    "helios/strategies/packages",
+)
+
+
+def _packages_in(repo_root, directory):
+    return sorted(
+        path for path in (repo_root / directory).rglob("*") if path.is_file()
+    )
+
+
+def test_every_legitimate_package_validates_against_the_published_schema(
+    repo_root, published_validator
+):
+    for directory in LEGITIMATE_PACKAGE_DIRS:
+        paths = _packages_in(repo_root, directory)
+        assert paths, directory
+        for path in paths:
+            errors = list(published_validator.iter_errors(_as_json_document(path)))
+            assert not errors, f"{path}: {[error.message for error in errors]}"
+
+
+#: Which malformed fixtures the PUBLISHED schema rejects on its own, and which
+#: it cannot. ``False`` is not a gap left open by accident — it names a rule
+#: with no Draft 2020-12 expression, and ``helios.spec.schema.PYTHON_ONLY_RULES``
+#: is the schema's own statement of the same two.
+SCHEMA_CATCHES = {
+    "all_chain_with_ordering.yaml": True,
+    "atomic_with_chain.yaml": True,
+    "context_trigger_without_roles.yaml": True,
+    "duplicate_role.yaml": False,          # uniqueness by key: inexpressible
+    "expiry_frames_without_count.yaml": True,
+    "parameter_out_of_range.yaml": False,  # sibling comparison: inexpressible
+    "sequence_without_window.yaml": True,
+    "unknown_key_typo.yaml": True,
+    "unknown_required_field.yaml": True,
+    "unknown_schema_version.yaml": True,
+}
+
+UNDERSPECIFIED_CATCHES = {
+    "requires_unpublished_fact.atomic.yaml": True,
+    "sequence_without_ordering_window.chain.yaml": True,
+}
+
+
+@pytest.mark.parametrize(("name", "rejected"), sorted(SCHEMA_CATCHES.items()))
+def test_the_published_schema_rejects_the_malformed_packages(
+    malformed_dir, published_validator, name, rejected
+):
+    """Measured, not assumed: this was 2 of 10 before the schema was tightened."""
+    errors = list(published_validator.iter_errors(_as_json_document(malformed_dir / name)))
+    assert bool(errors) is rejected, (
+        f"{name}: schema {'accepted' if not errors else 'rejected'} it, expected "
+        f"{'rejected' if rejected else 'accepted'}"
+    )
+
+
+@pytest.mark.parametrize(("name", "rejected"), sorted(UNDERSPECIFIED_CATCHES.items()))
+def test_the_published_schema_rejects_the_under_specified_packages(
+    repo_root, published_validator, name, rejected
+):
+    path = repo_root / "fixtures" / "hsa" / "underspecified" / name
+    errors = list(published_validator.iter_errors(_as_json_document(path)))
+    assert bool(errors) is rejected, name
+
+
+def test_every_malformed_fixture_is_measured_against_the_published_schema(
+    malformed_dir,
+):
+    """No fixture may be quietly dropped from the measurement above."""
+    on_disk = {path.name for path in malformed_dir.iterdir() if path.is_file()}
+    assert on_disk == set(SCHEMA_CATCHES)
+
+
+def test_the_schema_states_the_rules_it_cannot_express(repo_root):
+    """The residual gap is published, not silent.
+
+    An author who passes this schema and is then refused by HELIOS must be able
+    to see, from the artefact itself, that passing it was never sufficient.
+    """
+    from helios.spec.schema import PYTHON_ONLY_RULES
+
+    assert len(PYTHON_ONLY_RULES) == sum(
+        1 for rejected in SCHEMA_CATCHES.values() if not rejected
+    )
+    description = json.loads(
+        (repo_root / SCHEMA_PATH).read_text(encoding="utf-8")
+    )["description"]
+    assert "necessary but not sufficient" in description
+    for rule in PYTHON_ONLY_RULES:
+        assert rule in description
+
+
+@pytest.mark.parametrize("name", sorted(SCHEMA_CATCHES) )
+def test_python_refuses_every_malformed_package_the_schema_cannot(
+    malformed_dir, name
+):
+    """Whatever the schema misses, the loader must still refuse."""
+    with pytest.raises(StrategySpecError):
+        load_strategy_package(malformed_dir / name)

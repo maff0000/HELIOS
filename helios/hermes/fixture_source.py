@@ -8,6 +8,13 @@ that HELIOS accepts is a fixture the real contract accepts.
 
 Numbers are read with ``parse_float=Decimal`` so the value in the file is the
 value HELIOS evaluates.
+
+The document format is CLOSED, like every other model in the contract layer:
+the shape below is exhaustive, and an unrecognised document key or frame key
+is a loud failure rather than a silent pass-through. Cherry-picking the keys
+it wanted let a fixture carry ``timestamp_utcc`` beside ``timestamp_utc`` and
+load without complaint — which is precisely the silent acceptance
+``helios.integration.hermes_boundary`` advertises HELIOS does not do.
 """
 
 from __future__ import annotations
@@ -19,7 +26,10 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Optional, Sequence
 
+from pydantic import ValidationError
+
 from helios.clock import from_iso8601_utc
+from helios.contracts._fields import HeliosModel, summarise_validation_error
 from helios.contracts._tokens import Instrument
 from helios.contracts.market_fact import MarketFactFrame
 from helios.contracts.timeframe import Timeframe
@@ -29,17 +39,48 @@ from helios.errors import ContractViolationError
 #: The fixture document format this loader understands.
 FIXTURE_SCHEMA_VERSION = "helios.hermes_fixture/1.0.0"
 
-_REQUIRED_DOCUMENT_KEYS = (
-    "fixture_schema_version",
-    "fixture_id",
-    "description",
-    "instrument",
-    "timeframe",
-    "fact_schema_version",
-    "source",
-    "reference_now_utc",
-    "frames",
-)
+class FixtureFrameDocument(HeliosModel):
+    """One frame exactly as a fixture FILE writes it.
+
+    ``candle`` and ``indicators`` stay raw mappings on purpose: they are
+    validated by :class:`~helios.contracts.market_fact.MarketFactFrame`, which
+    is the same closed model the live boundary uses, so a fixture is held to
+    the real contract rather than to a parallel description of it.
+
+    The four optional fields are per-frame overrides of the document-level
+    value. They are part of the format, which is why they are declared rather
+    than tolerated.
+    """
+
+    timestamp_utc: Any
+    candle: Mapping[str, Any]
+    indicators: Mapping[str, Any]
+    observed_at_utc: Any
+    ingested_at_utc: Any
+    instrument: Optional[str] = None
+    timeframe: Optional[str] = None
+    source: Optional[str] = None
+    fact_schema_version: Optional[str] = None
+
+
+class FixtureDocument(HeliosModel):
+    """A whole fixture file. Closed: an unrecognised key is a loud failure."""
+
+    fixture_schema_version: str
+    fixture_id: str
+    description: str
+    instrument: str
+    timeframe: Any
+    fact_schema_version: str
+    source: Any
+    reference_now_utc: str
+    frames: tuple[FixtureFrameDocument, ...]
+    expectations: tuple[str, ...] = ()
+
+
+#: Every key a fixture document carries, derived from the model so the two can
+#: never disagree.
+FIXTURE_DOCUMENT_KEYS: tuple[str, ...] = tuple(FixtureDocument.model_fields)
 
 
 @dataclass(frozen=True, slots=True)
@@ -75,12 +116,14 @@ def read_fixture_document(path: Path | str) -> dict[str, Any]:
         raise ContractViolationError(
             "a fixture document must be a mapping", origin=str(path)
         )
-    missing = [key for key in _REQUIRED_DOCUMENT_KEYS if key not in document]
-    if missing:
+    # The declared version is checked FIRST: it decides which shape the rest of
+    # the document is judged against, so reporting a shape mismatch against a
+    # format we never claimed to read would be the wrong complaint.
+    if "fixture_schema_version" not in document:
         raise ContractViolationError(
-            "fixture document is missing required keys",
+            "fixture document does not declare a fixture_schema_version",
             origin=str(path),
-            missing=sorted(missing),
+            supported=FIXTURE_SCHEMA_VERSION,
         )
     declared = document["fixture_schema_version"]
     if declared != FIXTURE_SCHEMA_VERSION:
@@ -90,6 +133,20 @@ def read_fixture_document(path: Path | str) -> dict[str, Any]:
             received=declared,
             supported=FIXTURE_SCHEMA_VERSION,
         )
+    try:
+        FixtureDocument.model_validate(dict(document))
+    except ValidationError as exc:  # pragma: no cover - HeliosModel converts first
+        raise ContractViolationError(
+            "malformed fixture document",
+            origin=str(path),
+            problems=summarise_validation_error(exc),
+        ) from exc
+    except ContractViolationError as exc:
+        # Re-raised carrying the file it came from: an error naming only the
+        # model tells an author which SHAPE is wrong but not which document.
+        raise ContractViolationError(
+            exc.message, origin=str(path), **dict(exc.context)
+        ) from exc
     if not isinstance(document["frames"], Sequence) or not document["frames"]:
         raise ContractViolationError(
             "fixture document must contain at least one frame", origin=str(path)
@@ -125,15 +182,9 @@ def load_fixture_frames(
             raise ContractViolationError(
                 "fixture frame must be a mapping", origin=str(path), index=index
             )
+        # Already validated as closed by read_fixture_document above; this is
+        # the same shape, re-read here so the two paths cannot drift.
         record = dict(raw)
-        for key in ("timestamp_utc", "candle", "indicators", "observed_at_utc", "ingested_at_utc"):
-            if key not in record:
-                raise ContractViolationError(
-                    "fixture frame is missing a required key",
-                    origin=str(path),
-                    index=index,
-                    key=key,
-                )
         try:
             frames.append(
                 MarketFactFrame(

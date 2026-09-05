@@ -108,6 +108,28 @@ overrides. `assess_frame()` reports a `FreshnessVerdict`;
 output envelope's `inputs`, so a consumer can see exactly how fresh the facts
 behind a state were.
 
+**Facts dated ahead of us.** A fact whose close instant has not arrived has a
+negative age, and the two causes of that are not the same thing:
+
+```
+max_future(timeframe) = timeframe.duration + clock_skew_tolerance
+```
+
+The `duration` term is the bar that has opened and not yet closed — HERMES
+publishes a bar the moment it opens, so a fact's close instant legitimately
+sits up to one whole bar ahead of us. The `clock_skew_tolerance` term is the
+drift between the HERMES host's clock and ours; it is the only part a
+deployment chooses, and it comes from configuration
+(`HELIOS_FRESHNESS_CLOCK_SKEW_SECONDS` / `[freshness] clock_skew_seconds`)
+like every other number here.
+
+Within that bound the age is reported as `0` — the fact is as fresh as a fact
+can be — **by this stated rule, not by a clamp**. Beyond it the fact is dated
+further into the future than anything can account for, so it is refused with
+`FutureFactError`, `is_fresh` is false, and its real **negative** age is
+reported rather than zeroed. An unbounded clamp is what previously published a
+fact dated a century ahead as `age_seconds=0, is_fresh=true`.
+
 Nothing is ever silently defaulted, silently zeroed or silently substituted.
 
 ---
@@ -315,6 +337,17 @@ HSA emits declarative packages; HELIOS loads them. Schema version
 `docs/schema/strategy_package.schema.json` and a test fails if it drifts from
 the model.
 
+That schema carries the cross-field rules too — an `ATOMIC` package that also
+declares a chain, a `SEQUENCE` without an ordering window, an expiry mode
+without its value, an input naming a fact HERMES does not publish — because
+they are what a package is usually malformed BY, and a schema describing only
+the shape of a package handed its author a clean pass on work HELIOS refuses.
+Two rules have no Draft 2020-12 expression at all: a semantic role bound to
+more than one input (uniqueness by key), and a parameter value outside the
+range that same parameter declares (a comparison between siblings). The schema
+names both in its own `description`, so passing it is **necessary but not
+sufficient** — loading the package through HELIOS remains the authority.
+
 ```yaml
 schema_version: helios.strategy_package/1.0.0
 kind: ATOMIC                       # or CHAIN
@@ -434,6 +467,7 @@ machine-queryable. Local time appears nowhere.
 | `ContractViolationError` | malformed market fact, frame, window or value token |
 | `MissingFactError` | a required fact, indicator, window or parameter is absent |
 | `StaleFactError` | a fact exists but is older than its configured limit |
+| `FutureFactError` | a fact is dated further ahead than the configured clock-skew tolerance permits |
 | `IllegalStateTransitionError` | a proposed state transition is not in the legal table |
 | `IdentityError` | malformed identity/version, or a promotion-immutability breach |
 | `StrategySpecError` | a strategy package is malformed, ambiguous or incomplete |

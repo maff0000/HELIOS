@@ -42,6 +42,16 @@ class StaleFactError(FreshnessError):
     """A required market fact exists but is older than its configured limit."""
 
 
+class FutureFactError(FreshnessError):
+    """A required market fact is dated further into the future than tolerated.
+
+    A small negative age is legitimate — a bar that has opened but not closed,
+    plus whatever clock drift the deployment declares it will tolerate. Beyond
+    that the fact cannot be reasoned about, and HELIOS refuses it rather than
+    zeroing its age and calling it maximally fresh.
+    """
+
+
 class MissingFactError(FreshnessError):
     """A required market fact, indicator or window is absent."""
 

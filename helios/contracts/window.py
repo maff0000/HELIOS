@@ -2,7 +2,12 @@
 
 A window is the deterministic view of recent history a strategy evaluates
 against. It is frozen: a strategy receives one, reads it, and structurally
-cannot alter what any other strategy will see.
+cannot alter what any other strategy will see. That is enforced rather than
+asserted — the ONE window object is handed by reference to every sibling
+evaluating the same facts, so ``__slots__`` alone (which only bounds the set
+of attribute NAMES) would leave an ordinary ``window._frames = ...`` free to
+rewrite what every other strategy is about to read. Assignment and deletion
+are both refused, following :class:`~helios.contracts._fields.FrozenMapping`.
 
 Ordering is strictly ascending by bar-open instant. Gaps are permitted —
 markets close — but duplicates and out-of-order frames are malformed input and
@@ -71,9 +76,23 @@ class MarketFactWindow:
                     previous_timestamp_utc=previous.isoformat(),
                     timestamp_utc=current.isoformat(),
                 )
-        self._frames: tuple[MarketFactFrame, ...] = ordered
-        self._instrument: Instrument = first.instrument
-        self._timeframe: Timeframe = first.timeframe
+        # object.__setattr__ because this instance refuses ordinary assignment
+        # from the moment it exists; see __setattr__ below.
+        object.__setattr__(self, "_frames", ordered)
+        object.__setattr__(self, "_instrument", first.instrument)
+        object.__setattr__(self, "_timeframe", first.timeframe)
+
+    def __setattr__(self, name: str, value: object) -> None:
+        raise ContractViolationError(
+            "a market-fact window is immutable; build a new window instead",
+            attribute=name,
+        )
+
+    def __delattr__(self, name: str) -> None:
+        raise ContractViolationError(
+            "a market-fact window is immutable; build a new window instead",
+            attribute=name,
+        )
 
     @property
     def instrument(self) -> Instrument:

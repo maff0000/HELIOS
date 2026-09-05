@@ -77,6 +77,11 @@ REQUIRED_SETTINGS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
         ("freshness", "allow_incomplete_frames"),
     ),
     (
+        "freshness_clock_skew_seconds",
+        "HELIOS_FRESHNESS_CLOCK_SKEW_SECONDS",
+        ("freshness", "clock_skew_seconds"),
+    ),
+    (
         "accepted_hermes_schema_versions",
         "HELIOS_ACCEPTED_HERMES_SCHEMA_VERSIONS",
         ("hermes", "accepted_schema_versions"),
@@ -128,6 +133,7 @@ class HeliosConfig:
     freshness_max_age_multiplier: str
     freshness_grace_seconds: int
     freshness_allow_incomplete_frames: bool
+    freshness_clock_skew_seconds: int
     accepted_hermes_schema_versions: tuple[str, ...]
     freshness_overrides: Mapping[Timeframe, timedelta]
     strategy_package_dir: Optional[Path]
@@ -202,6 +208,7 @@ class HeliosConfig:
             max_age_multiplier=self.freshness_max_age_multiplier,
             grace=timedelta(seconds=self.freshness_grace_seconds),
             allow_incomplete_frames=self.freshness_allow_incomplete_frames,
+            clock_skew_tolerance=timedelta(seconds=self.freshness_clock_skew_seconds),
             overrides=self.freshness_overrides,
         )
 
@@ -489,6 +496,16 @@ def load_config(
         if raw["freshness_allow_incomplete_frames"] is not None
         else None
     )
+    clock_skew = (
+        _as_int(
+            raw["freshness_clock_skew_seconds"],
+            name="freshness_clock_skew_seconds",
+            problems=problems,
+            minimum=0,
+        )
+        if raw["freshness_clock_skew_seconds"] is not None
+        else None
+    )
     accepted = (
         _as_string_tuple(
             raw["accepted_hermes_schema_versions"],
@@ -575,6 +592,7 @@ def load_config(
 
     assert environment and log_level and multiplier and accepted is not None
     assert grace is not None and allow_incomplete is not None
+    assert clock_skew is not None
     assert publication_sink is not None
     return HeliosConfig(
         runtime_instrument=runtime_instrument,
@@ -589,6 +607,7 @@ def load_config(
         freshness_max_age_multiplier=multiplier,
         freshness_grace_seconds=grace,
         freshness_allow_incomplete_frames=allow_incomplete,
+        freshness_clock_skew_seconds=clock_skew,
         accepted_hermes_schema_versions=accepted,
         freshness_overrides=overrides,
         strategy_package_dir=package_dir,

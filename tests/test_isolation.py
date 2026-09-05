@@ -20,6 +20,7 @@ import ast
 import subprocess
 import sys
 import threading
+from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
@@ -31,6 +32,7 @@ from helios.contracts import (
     MarketFactWindow,
     StrategyState,
     StrategyStateEnvelope,
+    Timeframe,
 )
 from helios.contracts.identity import StrategyIdentity
 from decimal import Decimal
@@ -270,14 +272,66 @@ def test_the_concurrent_path_actually_overlaps(policy):
 
 
 def test_one_strategy_cannot_mutate_the_facts_another_will_read():
+    """Every layer of the shared facts, including the window OBJECT itself.
+
+    The frames tuple and the pydantic models below were always immutable. The
+    window that HOLDS them was not: ``__slots__`` bounds which attribute NAMES
+    exist, and nothing else, so ``window._frames = ...`` rewrote the one object
+    ``shared_facts_context`` hands by reference to every sibling. That is the
+    only mutable thing in this picture and it is the thing this test used not
+    to touch.
+    """
     windows = _windows_for(_atoms_over_one_instrument())
     window = next(iter(windows.values()))
+
+    # The window object itself: assignment, deletion, and a new attribute.
+    with pytest.raises(ContractViolationError):
+        window._frames = window._frames[:-1]  # type: ignore[misc]
+    with pytest.raises(ContractViolationError):
+        window._instrument = None  # type: ignore[misc]
+    with pytest.raises(ContractViolationError):
+        window._timeframe = None  # type: ignore[misc]
+    with pytest.raises(ContractViolationError):
+        window.frames = ()  # type: ignore[misc]
+    with pytest.raises(ContractViolationError):
+        del window._frames  # type: ignore[misc]
+    with pytest.raises(ContractViolationError):
+        window.smuggled = "anything"  # type: ignore[attr-defined]
+
+    # ...and nothing above changed what the window will report.
+    assert len(window.frames) == len(window)
+    assert window.latest is window.frames[-1]
+
     with pytest.raises(TypeError):
         window.frames[0] = window.frames[-1]  # type: ignore[index]
     with pytest.raises(ValidationError):
         window.frames[0].candle.close = Decimal(1)  # type: ignore[misc]
     with pytest.raises(ValidationError):
         window.frames[0].indicators.ema_50 = Decimal(1)  # type: ignore[misc]
+
+
+def test_the_shared_timeframe_singleton_cannot_be_mutated_through_a_window():
+    """``Timeframe`` members are process-wide and reachable from every window.
+
+    Every freshness limit in HELIOS derives from ``duration`` and from nothing
+    else, so a writable ``window.timeframe._duration`` would move the limit for
+    every sibling, every later evaluation, and every other instrument in the
+    process at once.
+    """
+    windows = _windows_for(_atoms_over_one_instrument())
+    window = next(iter(windows.values()))
+    timeframe = window.timeframe
+    before = timeframe.duration
+
+    with pytest.raises(ContractViolationError):
+        timeframe._duration = timedelta(days=999)  # type: ignore[misc]
+    with pytest.raises(ContractViolationError):
+        timeframe._code = "ZZ"  # type: ignore[misc]
+    with pytest.raises(ContractViolationError):
+        del timeframe._duration  # type: ignore[misc]
+
+    assert timeframe.duration == before
+    assert Timeframe.parse(timeframe.code).duration == before
 
 
 def test_a_published_envelope_cannot_be_edited_by_whoever_holds_it(policy):
@@ -516,3 +570,67 @@ def test_containment_covers_anything_implementing_the_interface(policy):
     assert len(contained) == 1
     assert contained[0].failure_type == "RuntimeError"
     assert contained[0].envelope.state is StrategyState.INVALID
+
+
+#: An atom bound to the same semantic role and timeframe as ``range_breakout``,
+#: so it shares that strategy's window object exactly as a real sibling does.
+MUTATING_PACKAGE = {
+    **FAILING_PACKAGE,
+    "identity": {"strategy_id": "deliberate_mutation", "strategy_version": "1.0.0"},
+    "metadata": {
+        "title": "Deliberate mutation",
+        "description": "A strategy that tries to rewrite the shared facts.",
+        "authored_by": "FORGE",
+        "authored_at_utc": "2026-01-02T09:30:00Z",
+    },
+    "inputs": [
+        {"role": "TRIGGER", "timeframe": "M5", "lookback": 2,
+         "required_fields": ["close"]}
+    ],
+}
+
+
+class MutatingAtom(AtomicStrategy):
+    """Drops the newest frame from the window it was handed. Nothing else."""
+
+    ATOM_NAME = "deliberate_mutation"
+    REQUIRED_FIELDS = ("close",)
+    MIN_LOOKBACK = 2
+    SUMMARY = "Tries to rewrite the shared facts."
+
+    def assess(self, reading: AtomReading) -> AtomVerdict:
+        reading.window._frames = reading.window._frames[:-1]  # type: ignore[misc]
+        return AtomVerdict(
+            holds=False,
+            direction=Direction.NEUTRAL,
+            explanation="should never be reached",
+        )
+
+
+def test_a_strategy_that_rewrites_the_shared_window_is_contained(policy):
+    """The whole invariant, driven through the real evaluation path.
+
+    ``evaluate_sequentially`` with the mutator FIRST is deliberate: it removes
+    scheduling luck, so if the window were writable every sibling after it
+    would read the shortened history and publish different bytes. The mutator
+    is instead contained like any other failing strategy, and the siblings are
+    byte-identical to a run it was never part of.
+    """
+    registry = default_registry()
+    registry.register(MutatingAtom)
+    healthy = _atoms_over_one_instrument(registry)
+    mutator = registry.build(parse_strategy_package(MUTATING_PACKAGE, origin="test"))
+
+    alone = evaluate_sequentially(healthy, _context_factory(healthy, policy))
+    mixed = evaluate_sequentially(
+        [mutator] + healthy, _context_factory([mutator] + healthy, policy)
+    )
+
+    assert mixed[0].contained
+    assert mixed[0].failure_type == "ContractViolationError"
+    assert mixed[0].envelope.state is StrategyState.INVALID
+    assert [outcome.envelope.to_canonical_json() for outcome in alone] == [
+        outcome.envelope.to_canonical_json()
+        for outcome in mixed
+        if not outcome.contained
+    ]

@@ -22,6 +22,13 @@ grace_seconds = 60
 # Whether a strategy may evaluate against a bar HERMES has not marked complete.
 allow_incomplete_frames = false
 
+# How far a fact's CLOSE instant may sit ahead of us, over and above the one
+# bar duration an open bar legitimately accounts for. This is the clock drift
+# between the HERMES host and this one, and nothing else. A fact dated further
+# ahead than that is refused outright rather than being treated as maximally
+# fresh: an unbounded clamp published a fact from a century away as age 0.
+clock_skew_seconds = 5
+
 # Optional: absolute per-timeframe limits, in seconds, when a timeframe
 # genuinely needs a different rule from the derived one.
 # [freshness.overrides]

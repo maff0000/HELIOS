@@ -45,6 +45,7 @@ CONTAINER_ENVIRONMENT = {
     "HELIOS_LOG_LEVEL": "DEBUG",
     "HELIOS_FRESHNESS_MAX_AGE_MULTIPLIER": "1.5",
     "HELIOS_FRESHNESS_GRACE_SECONDS": "60",
+        "HELIOS_FRESHNESS_CLOCK_SKEW_SECONDS": "5",
     "HELIOS_FRESHNESS_ALLOW_INCOMPLETE_FRAMES": "false",
     "HELIOS_ACCEPTED_HERMES_SCHEMA_VERSIONS": "hermes.market_fact/1.0.0",
     "HELIOS_PUBLICATION_SINK": "FILE",
@@ -365,4 +366,4 @@ def test_a_container_given_no_configuration_refuses_to_start(image):
     assert report["error_type"] == "ConfigurationError"
     assert report["level"] == "CRITICAL"
     assert report["ts_utc"].endswith("Z")
-    assert len(report["error_context"]["problems"]) == 7
+    assert len(report["error_context"]["problems"]) == 8

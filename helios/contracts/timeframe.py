@@ -40,6 +40,32 @@ class Timeframe(Enum):
         self._hermes_code = hermes_code
         self._duration = duration
 
+    def __setattr__(self, name: str, value: Any) -> None:
+        """A member is a process-wide singleton; it refuses mutation.
+
+        Every freshness limit in HELIOS derives from ``duration`` and from
+        nothing else, and the SAME member object is reachable from every
+        window every strategy is handed. An ordinary
+        ``reading.window.timeframe._duration = ...`` would therefore silently
+        move the limit for every sibling and every later evaluation in the
+        process. Enum members carry an ordinary instance dict, so that has to
+        be refused explicitly rather than assumed.
+        """
+        # Absent until the sealing loop at the bottom of this module runs, so
+        # the enum machinery and __init__ can still write during class
+        # creation. It is NOT declared in the class body: a plain assignment
+        # there would be read as another enum member.
+        if getattr(self, "_sealed", False):
+            raise ContractViolationError(
+                "a timeframe is an immutable shared singleton", attribute=name
+            )
+        object.__setattr__(self, name, value)
+
+    def __delattr__(self, name: str) -> None:
+        raise ContractViolationError(
+            "a timeframe is an immutable shared singleton", attribute=name
+        )
+
     @property
     def code(self) -> str:
         """Canonical HELIOS code, e.g. ``"H4"``."""
@@ -142,3 +168,11 @@ class Timeframe(Enum):
 ALL_TIMEFRAMES: tuple[Timeframe, ...] = tuple(
     sorted(Timeframe, key=lambda member: member.duration)
 )
+
+# Sealed only now: the enum machinery writes ``_value_``, ``_name_``,
+# ``__objclass__`` and ``_sort_order_`` onto each member during class creation,
+# and ``__init__`` writes the three fields above. From here on every member
+# refuses assignment.
+for _member in Timeframe:
+    object.__setattr__(_member, "_sealed", True)
+del _member

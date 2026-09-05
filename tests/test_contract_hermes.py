@@ -7,6 +7,8 @@ fixture HELIOS accepts is a fact the real contract accepts.
 
 from __future__ import annotations
 
+from datetime import timedelta
+
 import ast
 from pathlib import Path
 
@@ -262,6 +264,7 @@ def test_an_incomplete_bar_obeys_the_configured_policy(stale_dir, policy):
         max_age_multiplier=policy.max_age_multiplier,
         grace=policy.grace,
         allow_incomplete_frames=True,
+        clock_skew_tolerance=timedelta(seconds=5),
     )
     window = accept_market_facts(
         fixture.frames, policy=permissive, now_utc=fixture.reference_now_utc

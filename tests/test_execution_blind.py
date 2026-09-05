@@ -7,7 +7,11 @@ structurally impossible, not merely absent" is the requirement, so this module
 enforces it mechanically over the whole tree:
 
 * every identifier and every non-docstring string literal in ``helios/`` and
-  ``tests/`` is checked against the forbidden vocabulary;
+  ``tests/`` is checked against the forbidden vocabulary, **including inside
+  compound names**: a forbidden term is caught as a segment of
+  ``broker_account`` or ``brokerAccount``, not only as a bare word. That is
+  not a refinement — a word-boundary match made the whole BARE section inert
+  against snake_case, which is how nearly everything here is named;
 * every fixture value is checked too, so the data cannot smuggle the concept in;
 * the published output envelope is checked to carry no such field;
 * the evaluation context is checked to expose no channel through which
@@ -53,15 +57,36 @@ def load_vocabulary() -> tuple[tuple[str, ...], tuple[str, ...]]:
 
 BARE_TERMS, PATTERN_TERMS = load_vocabulary()
 
-BARE_RE = re.compile(r"\b(" + "|".join(BARE_TERMS) + r")\b", re.IGNORECASE)
+BARE_VOCABULARY = frozenset(term.lower() for term in BARE_TERMS)
 PATTERN_RE = re.compile("|".join(f"(?:{item})" for item in PATTERN_TERMS), re.IGNORECASE)
+
+#: Splits text into the words a compound name is built from.
+#:
+#: This replaces a ``\b(term)\b`` alternation, which was INERT for every BARE
+#: term inside a compound name: ``_`` is a word character, so ``\bbroker\b``
+#: never matched ``broker_account`` — and snake_case is the dominant naming
+#: convention in this tree, so the whole BARE section enforced nothing against
+#: the names it most needed to. Segmenting first and comparing whole segments
+#: catches snake_case, kebab-case, dotted and camelCase names alike, while
+#: still matching a bare word exactly as ``\b`` did.
+#:
+#: The three branches are ordered so an ALLCAPS word cannot be split into a
+#: forbidden prefix: ``MARGINAL`` is one segment and is not ``margin``, where a
+#: looser boundary rule would have reported it. ``Marginal`` and ``marginal``
+#: are single segments for the same reason.
+SEGMENT_RE = re.compile(r"[A-Z]+(?![a-z])|[A-Z][a-z]+|[a-z]+|[0-9]+")
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 EXCLUDED = frozenset({VOCABULARY_FILE.resolve(), Path(__file__).resolve()})
 
 
+def segments(text: str) -> list[str]:
+    """Every word in ``text``, with compound names taken apart."""
+    return SEGMENT_RE.findall(text)
+
+
 def offences(text: str) -> list[str]:
-    return [match.group(0) for match in BARE_RE.finditer(text)] + [
+    return [word for word in segments(text) if word.lower() in BARE_VOCABULARY] + [
         match.group(0) for match in PATTERN_RE.finditer(text)
     ]
 
@@ -82,6 +107,70 @@ def test_the_guard_would_actually_catch_a_violation():
     assert offences("re-entry")
     assert not offences("ema_50 crossed above ema_200")
     assert not offences("ordered window of market facts")
+
+
+@pytest.mark.parametrize("term", BARE_TERMS)
+def test_no_bare_term_is_inert_inside_a_compound_name(term):
+    """The defect this parametrisation exists for.
+
+    ``\b(term)\b`` cannot match inside ``broker_account``, because ``_`` is a
+    word character — so EVERY term in the BARE section was unenforced against
+    the naming convention this tree actually uses. Asserting it term by term is
+    what makes that impossible to reintroduce quietly for one entry.
+    """
+    # ``in``, not ``==``: a term such as ``stoploss`` is caught by the BARE
+    # section AND by a PATTERN entry, and both reports are correct.
+    assert term in offences(f"helios_{term}_value")
+    assert term in offences(f"{term}_from_upstream")
+    assert term in offences(f"derived_{term}")
+
+
+@pytest.mark.parametrize(
+    "innocent",
+    ["windows", "window", "positional", "marginal", "MARGINAL", "winter",
+     "lottery", "ordered", "wingspan", "override_takes_precedence"],
+)
+def test_the_guard_does_not_mangle_innocent_english(innocent):
+    """Precision matters as much as reach: a guard that cries wolf gets relaxed.
+
+    ``MARGINAL`` is the case a looser boundary rule gets wrong: it is one word,
+    not ``margin`` followed by something. Widening reach must not be paid for
+    with false positives, or the next author widens the allowlist instead.
+    """
+    assert not offences(innocent)
+
+
+def test_a_forbidden_identifier_injected_into_python_source_is_caught(tmp_path):
+    """Mutation test, through the real ``code_tokens`` scan path.
+
+    The Auditor's finding was not theoretical: it appended an execution field
+    to a shipped strategy package and the ENTIRE guard suite still passed. The
+    two mutation tests here are what make that impossible.
+    """
+    module = tmp_path / "injected.py"
+    module.write_text(
+        '"""Naming the boundary in prose is allowed; crossing it is not."""\n'
+        "\n\n"
+        "def read(frame):\n"
+        "    broker_account = frame\n"
+        "    return broker_account\n",
+        encoding="utf-8",
+    )
+    found = [item for _kind, text in code_tokens(module) for item in offences(text)]
+    assert "broker" in found and "account" in found
+
+
+def test_a_forbidden_key_injected_into_a_shipped_package_is_caught(tmp_path):
+    """The same mutation the Auditor actually ran, against a real package."""
+    shipped = sorted((REPO_ROOT / "helios" / "strategies" / "packages").glob("*.yaml"))
+    assert shipped, "the reference strategy packages moved; update this guard"
+    original = shipped[0].read_text(encoding="utf-8")
+    assert not offences(strip_comment_lines(original))
+
+    mutated = tmp_path / shipped[0].name
+    mutated.write_text(original + '\nbroker_account: "REDACTED"\n', encoding="utf-8")
+    found = offences(strip_comment_lines(mutated.read_text(encoding="utf-8")))
+    assert "broker" in found and "account" in found
 
 
 @pytest.mark.parametrize(

@@ -13,7 +13,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8,<10"]
+dev = ["pytest>=8,<10", "wheel>=0.38", "jsonschema>=4.10,<5"]
 
 [tool.setuptools.packages.find]
 include = ["helios*"]

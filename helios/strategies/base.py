@@ -427,6 +427,10 @@ class AtomicStrategy:
             max_age_multiplier=policy.max_age_multiplier,
             grace=policy.grace,
             allow_incomplete_frames=allow_incomplete,
+            # Carried through unchanged: clock skew is a property of the two
+            # HOSTS' clocks, which no strategy package has any standing to
+            # tighten or relax.
+            clock_skew_tolerance=policy.clock_skew_tolerance,
             overrides=overrides,
         )
 

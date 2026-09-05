@@ -42,9 +42,19 @@ def render_explanation(
         detail = "; ".join(outcome.describe() for outcome in failures)
         holding = [outcome for outcome in assessment.outcomes if outcome.satisfied]
         if holding:
-            detail += ". Still holding: " + "; ".join(
+            still = "Still holding: " + "; ".join(
                 outcome.describe() for outcome in holding
             )
+            # A chain can fail on a CHAIN-level rule with every component still
+            # satisfied — a SEQUENCE whose components each hold but together
+            # span more than the declared ordering window is the real case. The
+            # failure clause is then empty, and appending to it published a
+            # sentence that was nothing but a full stop:
+            #   "... did not match LONG. . Still holding: ..."
+            # The PID requires an explicit explanation of why a chain did not
+            # match, so a broken sentence is a defect in the published output,
+            # not a cosmetic one.
+            detail = f"{detail}. {still}" if detail else still
     if detail:
         parts.append(detail)
 
