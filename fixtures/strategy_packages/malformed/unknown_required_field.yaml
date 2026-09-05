@@ -1,0 +1,28 @@
+# BROKEN: requires a fact HERMES does not publish (macd_hist).
+schema_version: helios.strategy_package/1.0.0
+kind: ATOMIC
+identity:
+  strategy_id: golden_cross
+  strategy_version: 1.0.0
+metadata:
+  title: Golden cross
+  description: Base package deliberately broken in exactly one way.
+  authored_by: HSA
+  authored_at_utc: 2026-01-02T09:00:00Z
+inputs:
+  - role: CONTEXT
+    timeframe: H4
+    lookback: 2
+    required_fields: [close, ema_50, macd_hist]
+parameters: {}
+direction:
+  mode: DIRECTIONAL
+  resolution: STRATEGY_LOCAL
+timing:
+  evaluate_on: CLOSED_FRAME
+persistence:
+  min_matched_frames: 1
+  weakening_enabled: true
+expiry:
+  mode: FRAMES
+  frames: 6

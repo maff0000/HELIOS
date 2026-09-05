@@ -1,0 +1,23 @@
+# HELIOS secret-scanning configuration.
+#
+# This repository is public. The pre-commit gate in scripts/hooks/pre-commit
+# runs gitleaks against staged content before every commit, so a credential
+# cannot reach history in the first place.
+#
+# The upstream default ruleset is the baseline; HELIOS adds nothing that
+# weakens it. Allowlists must stay narrow and must never be widened to let a
+# real secret through — if a scan fires, the fix is to remove the secret, not
+# to permit it.
+
+title = "HELIOS gitleaks configuration"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Paths that contain no credentials by construction."
+paths = [
+  # Compiled Python and virtual environments.
+  '''(^|/)__pycache__/''',
+  '''(^|/)\.venv/''',
+]

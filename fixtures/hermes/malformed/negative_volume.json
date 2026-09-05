@@ -1,0 +1,111 @@
+{
+  "fixture_schema_version": "helios.hermes_fixture/1.0.0",
+  "fixture_id": "malformed_negative_volume",
+  "description": "Frame 1 reports negative volume.",
+  "expectations": [
+    "loading must fail: volume must not be negative"
+  ],
+  "instrument": "XAU_USD",
+  "timeframe": "H4",
+  "fact_schema_version": "hermes.market_fact/1.0.0",
+  "source": "hermes",
+  "reference_now_utc": "2026-01-07T00:01:00Z",
+  "frames": [
+    {
+      "timestamp_utc": "2026-01-05T00:00:00Z",
+      "candle": {
+        "open": "2395.00",
+        "high": "2397.50",
+        "low": "2393.50",
+        "close": "2396.00",
+        "volume": "1000",
+        "complete": true,
+        "source": "hermes"
+      },
+      "indicators": {
+        "rsi_14": "44.00",
+        "ema_9": "2396.40",
+        "ema_21": "2397.20",
+        "ema_50": "2396.00",
+        "ema_200": "2400.00",
+        "atr_14": "6.00",
+        "regime": "TRANSITION",
+        "session": "ASIA"
+      },
+      "observed_at_utc": "2026-01-05T04:00:01Z",
+      "ingested_at_utc": "2026-01-05T04:00:02Z"
+    },
+    {
+      "timestamp_utc": "2026-01-05T04:00:00Z",
+      "candle": {
+        "open": "2396.00",
+        "high": "2398.70",
+        "low": "2394.50",
+        "close": "2397.20",
+        "volume": "-25",
+        "complete": true,
+        "source": "hermes"
+      },
+      "indicators": {
+        "rsi_14": "47.00",
+        "ema_9": "2397.60",
+        "ema_21": "2398.40",
+        "ema_50": "2397.00",
+        "ema_200": "2400.00",
+        "atr_14": "5.80",
+        "regime": "TRANSITION",
+        "session": "ASIA"
+      },
+      "observed_at_utc": "2026-01-05T08:00:01Z",
+      "ingested_at_utc": "2026-01-05T08:00:02Z"
+    },
+    {
+      "timestamp_utc": "2026-01-05T08:00:00Z",
+      "candle": {
+        "open": "2397.20",
+        "high": "2399.90",
+        "low": "2395.70",
+        "close": "2398.40",
+        "volume": "1050",
+        "complete": true,
+        "source": "hermes"
+      },
+      "indicators": {
+        "rsi_14": "50.00",
+        "ema_9": "2398.80",
+        "ema_21": "2399.60",
+        "ema_50": "2398.00",
+        "ema_200": "2400.00",
+        "atr_14": "5.60",
+        "regime": "TRANSITION",
+        "session": "LONDON"
+      },
+      "observed_at_utc": "2026-01-05T12:00:01Z",
+      "ingested_at_utc": "2026-01-05T12:00:02Z"
+    },
+    {
+      "timestamp_utc": "2026-01-05T12:00:00Z",
+      "candle": {
+        "open": "2398.40",
+        "high": "2400.60",
+        "low": "2396.90",
+        "close": "2399.10",
+        "volume": "1075",
+        "complete": true,
+        "source": "hermes"
+      },
+      "indicators": {
+        "rsi_14": "52.00",
+        "ema_9": "2399.50",
+        "ema_21": "2400.30",
+        "ema_50": "2399.00",
+        "ema_200": "2400.00",
+        "atr_14": "5.40",
+        "regime": "TRANSITION",
+        "session": "LONDON"
+      },
+      "observed_at_utc": "2026-01-05T16:00:01Z",
+      "ingested_at_utc": "2026-01-05T16:00:02Z"
+    }
+  ]
+}

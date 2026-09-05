@@ -1,0 +1,94 @@
+# Example HELIOS configuration.
+#
+# This file is documentation. It is NOT loaded automatically: point
+# HELIOS_CONFIG_FILE at a real file, or set the equivalent HELIOS_* environment
+# variables. Environment variables win over file values, so one container image
+# runs in every environment with only its injected environment differing.
+#
+# No secrets belong in this file or in any file committed to this repository.
+
+environment = "dev"
+
+[logging]
+# One of DEBUG, INFO, WARNING, ERROR, CRITICAL. Logs are JSON and UTC.
+level = "INFO"
+
+[freshness]
+# A fact is usable while its age, measured from the bar's close instant, is at
+# most (timeframe duration * max_age_multiplier) + grace_seconds. One rule
+# scales from M1 to D1; there is no per-timeframe table in source.
+max_age_multiplier = "1.5"
+grace_seconds = 60
+# Whether a strategy may evaluate against a bar HERMES has not marked complete.
+allow_incomplete_frames = false
+
+# How far a fact's CLOSE instant may sit ahead of us, over and above the one
+# bar duration an open bar legitimately accounts for. This is the clock drift
+# between the HERMES host and this one, and nothing else. A fact dated further
+# ahead than that is refused outright rather than being treated as maximally
+# fresh: an unbounded clamp published a fact from a century away as age 0.
+clock_skew_seconds = 5
+
+# Optional: absolute per-timeframe limits, in seconds, when a timeframe
+# genuinely needs a different rule from the derived one.
+# [freshness.overrides]
+# H4 = 21600
+
+[hermes]
+# HELIOS refuses market facts whose schema version it does not understand
+# rather than guessing at unfamiliar fields.
+accepted_schema_versions = ["hermes.market_fact/1.0.0"]
+
+[publication]
+# Where normalised strategy state is published for FALCON, as canonical JSON
+# lines. One of:
+#   STREAM  - write to a standard stream; set `stream` to STDOUT or STDERR.
+#             Docker-first deployments collect the stream.
+#   FILE    - append to a file; set `path`.
+#   MEMORY  - keep payloads in memory. Dry runs; nothing durable is published.
+# There is deliberately no network sink and no state service.
+#
+# A setting belonging to a different sink is refused rather than ignored, so
+# `path` below stays commented out while the sink is STREAM.
+sink = "STREAM"
+stream = "STDOUT"
+# path = "/var/lib/helios/strategy_state.jsonl"
+
+
+[runtime]
+# The running service (`python3 -m helios.runtime`). These settings are
+# OPTIONAL to load_config and REQUIRED to run: a contract test is a perfectly
+# valid HELIOS process with no feed and no status file, so presence is asserted
+# when the service starts, and every absent setting is reported at once.
+#
+# The subject this deployment evaluates. One instrument per deployment.
+instrument = "XAU_USD"
+# Wall-clock pause between evaluations. 0 evaluates as fast as the feed allows.
+tick_seconds = 5
+# What to do when the ordered feed is exhausted: STOP, or REPEAT it from the
+# start. A repeated pass rearms to a cold start, so every pass publishes
+# identical bytes.
+on_feed_end = "REPEAT"
+# How stale the status document may be before a probe reports the service as
+# no longer live.
+health_max_age_seconds = 60
+
+# The three settings below name DIRECTORIES AND FILES, and HELIOS refuses at
+# startup any that do not exist - a mistyped path must fail loudly rather than
+# leave a service reading nothing and a probe watching a file nobody writes.
+# They are commented out here for exactly that reason: this file is
+# documentation and must load on any host. Supply them for a real deployment.
+#
+# Where the ordered HERMES market-fact documents are read from. HELIOS v1 ships
+# no live HERMES client; a later transport changes this setting, not the rules.
+# feed_dir = "/opt/helios/facts"
+#
+# Where health and readiness are written. Its directory must already exist.
+# status_file = "/var/lib/helios/status.json"
+#
+# Optional: stop after this many evaluations. Absent means unbounded.
+# max_cycles = 100
+
+# The strategy packages this deployment runs, as HSA authored them.
+# [strategies]
+# package_dir = "/opt/helios/strategies"

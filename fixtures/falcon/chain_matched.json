@@ -1,0 +1,95 @@
+{
+  "canonical_json": "{\"active_since_utc\":\"2026-01-06T00:05:00.000000Z\",\"chain_id\":\"gold_context_trigger\",\"chain_version\":\"1.0.0\",\"components\":[{\"contribution\":\"directional context, matched at 2026-01-06T00:00:00Z and still holding\",\"direction\":\"LONG\",\"last_evaluated_at_utc\":\"2026-01-06T00:05:00.000000Z\",\"matched\":true,\"semantic_role\":\"CONTEXT\",\"sequence_index\":null,\"state\":\"ACTIVE\",\"strategy_id\":\"golden_cross\",\"strategy_version\":\"1.0.0\",\"timeframe\":\"H4\"},{\"contribution\":\"close 2413.50 cleared the 20-bar range high 2410.00\",\"direction\":\"LONG\",\"last_evaluated_at_utc\":\"2026-01-06T00:05:00.000000Z\",\"matched\":true,\"semantic_role\":\"TRIGGER\",\"sequence_index\":null,\"state\":\"MATCHED\",\"strategy_id\":\"range_breakout\",\"strategy_version\":\"1.0.0\",\"timeframe\":\"M5\"}],\"direction\":\"LONG\",\"evidence\":{\"components_required\":2,\"components_satisfied\":2},\"explanation\":\"CONTEXT golden_cross@1.0.0 is ACTIVE LONG on H4 and TRIGGER range_breakout@1.0.0 MATCHED LONG on M5; both directions agree as the chain requires, so the chain matched.\",\"first_matched_at_utc\":\"2026-01-06T00:05:00.000000Z\",\"inputs\":[{\"age_seconds\":300,\"frame_timestamp_utc\":\"2026-01-05T20:00:00.000000Z\",\"instrument\":\"XAU_USD\",\"is_complete\":true,\"is_fresh\":true,\"max_age_seconds\":21660,\"schema_version\":\"hermes.market_fact/1.0.0\",\"semantic_role\":\"CONTEXT\",\"source\":\"hermes\",\"timeframe\":\"H4\"},{\"age_seconds\":60,\"frame_timestamp_utc\":\"2026-01-06T00:00:00.000000Z\",\"instrument\":\"XAU_USD\",\"is_complete\":true,\"is_fresh\":true,\"max_age_seconds\":510,\"schema_version\":\"hermes.market_fact/1.0.0\",\"semantic_role\":\"TRIGGER\",\"source\":\"hermes\",\"timeframe\":\"M5\"}],\"instrument\":\"XAU_USD\",\"kind\":\"CHAIN\",\"last_evaluated_at_utc\":\"2026-01-06T00:05:00.000000Z\",\"last_matched_at_utc\":\"2026-01-06T00:05:00.000000Z\",\"schema_version\":\"helios.strategy_state/1.0.0\",\"semantic_role\":null,\"state\":\"MATCHED\",\"strategy_id\":\"gold_context_trigger\",\"strategy_version\":\"1.0.0\",\"strength\":\"0.8\",\"timeframe\":null,\"validity\":{\"reason\":\"14400 seconds from the match, as the package declares\",\"valid_from_utc\":\"2026-01-06T00:05:00.000000Z\",\"valid_until_utc\":\"2026-01-06T04:05:00.000000Z\"}}",
+  "description": "A CONTEXT_TRIGGER chain that matched: H4 directional context agreeing with an M5 trigger, with full component provenance.",
+  "envelope_schema_version": "helios.strategy_state/1.0.0",
+  "expectations": [
+    "kind is CHAIN, and chain_id/chain_version repeat strategy_id/strategy_version so identity reads uniformly",
+    "components carry each contributing strategy's identity, version, state, direction, timeframe, semantic role and contribution",
+    "a component's matched flag can never contradict its state",
+    "the chain explains why it matched, as the PID requires",
+    "the chain itself states no timeframe: its components do",
+    "inputs cover every frame behind the decision, one per role"
+  ],
+  "golden_id": "chain_matched",
+  "golden_schema_version": "helios.contract_golden/1.0.0",
+  "payload": {
+    "active_since_utc": "2026-01-06T00:05:00.000000Z",
+    "chain_id": "gold_context_trigger",
+    "chain_version": "1.0.0",
+    "components": [
+      {
+        "contribution": "directional context, matched at 2026-01-06T00:00:00Z and still holding",
+        "direction": "LONG",
+        "last_evaluated_at_utc": "2026-01-06T00:05:00.000000Z",
+        "matched": true,
+        "semantic_role": "CONTEXT",
+        "sequence_index": null,
+        "state": "ACTIVE",
+        "strategy_id": "golden_cross",
+        "strategy_version": "1.0.0",
+        "timeframe": "H4"
+      },
+      {
+        "contribution": "close 2413.50 cleared the 20-bar range high 2410.00",
+        "direction": "LONG",
+        "last_evaluated_at_utc": "2026-01-06T00:05:00.000000Z",
+        "matched": true,
+        "semantic_role": "TRIGGER",
+        "sequence_index": null,
+        "state": "MATCHED",
+        "strategy_id": "range_breakout",
+        "strategy_version": "1.0.0",
+        "timeframe": "M5"
+      }
+    ],
+    "direction": "LONG",
+    "evidence": {
+      "components_required": 2,
+      "components_satisfied": 2
+    },
+    "explanation": "CONTEXT golden_cross@1.0.0 is ACTIVE LONG on H4 and TRIGGER range_breakout@1.0.0 MATCHED LONG on M5; both directions agree as the chain requires, so the chain matched.",
+    "first_matched_at_utc": "2026-01-06T00:05:00.000000Z",
+    "inputs": [
+      {
+        "age_seconds": 300,
+        "frame_timestamp_utc": "2026-01-05T20:00:00.000000Z",
+        "instrument": "XAU_USD",
+        "is_complete": true,
+        "is_fresh": true,
+        "max_age_seconds": 21660,
+        "schema_version": "hermes.market_fact/1.0.0",
+        "semantic_role": "CONTEXT",
+        "source": "hermes",
+        "timeframe": "H4"
+      },
+      {
+        "age_seconds": 60,
+        "frame_timestamp_utc": "2026-01-06T00:00:00.000000Z",
+        "instrument": "XAU_USD",
+        "is_complete": true,
+        "is_fresh": true,
+        "max_age_seconds": 510,
+        "schema_version": "hermes.market_fact/1.0.0",
+        "semantic_role": "TRIGGER",
+        "source": "hermes",
+        "timeframe": "M5"
+      }
+    ],
+    "instrument": "XAU_USD",
+    "kind": "CHAIN",
+    "last_evaluated_at_utc": "2026-01-06T00:05:00.000000Z",
+    "last_matched_at_utc": "2026-01-06T00:05:00.000000Z",
+    "schema_version": "helios.strategy_state/1.0.0",
+    "semantic_role": null,
+    "state": "MATCHED",
+    "strategy_id": "gold_context_trigger",
+    "strategy_version": "1.0.0",
+    "strength": "0.8",
+    "timeframe": null,
+    "validity": {
+      "reason": "14400 seconds from the match, as the package declares",
+      "valid_from_utc": "2026-01-06T00:05:00.000000Z",
+      "valid_until_utc": "2026-01-06T04:05:00.000000Z"
+    }
+  }
+}

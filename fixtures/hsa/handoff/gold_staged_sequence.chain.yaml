@@ -1,0 +1,80 @@
+# HSA-authored chain: an ordered temporal SEQUENCE across four semantic stages.
+#
+# Every component resolves to an atomic package in this same handoff, at the
+# exact version named.
+#
+# The definition below is deliberately identical to the promoted package at
+# fixtures/strategy_packages/valid/gold_sequence.chain.yaml. A promoted
+# (strategy_id, strategy_version) is immutable per docs/INTEGRATION.md 4.2, so
+# every file claiming gold_staged_sequence@1.0.0 must describe one strategy.
+schema_version: helios.strategy_package/1.0.0
+kind: CHAIN
+identity:
+  strategy_id: gold_staged_sequence
+  strategy_version: 1.0.0
+metadata:
+  title: GOLD staged sequence
+  description: >-
+    Context, then location, then confirmation, then trigger - each in that
+    order and all within one declared ordering window.
+  authored_by: HSA
+  authored_at_utc: 2026-01-02T10:30:00Z
+inputs:
+  - role: CONTEXT
+    timeframe: H4
+    lookback: 2
+    required_fields: [close, ema_50, ema_200]
+  - role: LOCATION
+    timeframe: H1
+    lookback: 24
+    required_fields: [high, low, close]
+  - role: CONFIRMATION
+    timeframe: M15
+    lookback: 1
+    required_fields: [open, high, low, close]
+  - role: TRIGGER
+    timeframe: M5
+    lookback: 20
+    required_fields: [high, low, close, atr_14]
+parameters: {}
+direction:
+  mode: DIRECTIONAL
+  resolution: FROM_COMPONENTS
+  component_relationship: SAME
+timing:
+  evaluate_on: CLOSED_FRAME
+persistence:
+  min_matched_frames: 1
+  weakening_enabled: true
+expiry:
+  mode: DURATION
+  duration_seconds: 28800
+chain:
+  primitive: SEQUENCE
+  ordering_window_seconds: 28800
+  explanation_required: true
+  components:
+    - strategy_id: golden_cross
+      strategy_version: 1.0.0
+      role: CONTEXT
+      sequence_index: 0
+      direction_relationship: SAME
+      required_states: [MATCHED, ACTIVE, WEAKENING]
+    - strategy_id: swing_proximity
+      strategy_version: 1.0.0
+      role: LOCATION
+      sequence_index: 1
+      direction_relationship: SAME
+      required_states: [MATCHED, ACTIVE]
+    - strategy_id: rejection_wick
+      strategy_version: 1.0.0
+      role: CONFIRMATION
+      sequence_index: 2
+      direction_relationship: SAME
+      required_states: [MATCHED]
+    - strategy_id: range_breakout
+      strategy_version: 1.0.0
+      role: TRIGGER
+      sequence_index: 3
+      direction_relationship: SAME
+      required_states: [MATCHED]

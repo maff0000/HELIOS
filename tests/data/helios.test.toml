@@ -1,0 +1,25 @@
+# Configuration used by the HELIOS test suite.
+#
+# Tests never rely on a value baked into source: HELIOS has none. They load
+# this file, exactly as a deployment loads its own.
+
+environment = "test"
+
+[logging]
+level = "DEBUG"
+
+[freshness]
+max_age_multiplier = "1.5"
+grace_seconds = 60
+allow_incomplete_frames = false
+clock_skew_seconds = 5
+
+[freshness.overrides]
+D1 = 172800
+
+[hermes]
+accepted_schema_versions = ["hermes.market_fact/1.0.0"]
+
+[publication]
+# Nothing durable is published by the suite.
+sink = "MEMORY"

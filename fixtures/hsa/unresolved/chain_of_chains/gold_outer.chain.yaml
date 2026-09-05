@@ -1,0 +1,42 @@
+# An HSA handoff HELIOS refuses: a chain naming another chain as a component.
+#
+# v1 chains consume atomic strategies directly. The PID requires explicit
+# architecture authority before recursive chain-of-chain composition exists,
+# so HELIOS refuses the handoff instead of quietly inventing the semantics.
+schema_version: helios.strategy_package/1.0.0
+kind: CHAIN
+identity:
+  strategy_id: gold_outer
+  strategy_version: 1.0.0
+metadata:
+  title: GOLD outer chain
+  description: >-
+    Combines an existing chain with an atomic strategy.
+  authored_by: HSA
+  authored_at_utc: 2026-01-02T11:00:00Z
+inputs: []
+parameters: {}
+direction:
+  mode: DIRECTIONAL
+  resolution: FROM_COMPONENTS
+  component_relationship: SAME
+timing:
+  evaluate_on: CLOSED_FRAME
+persistence:
+  min_matched_frames: 1
+  weakening_enabled: false
+expiry:
+  mode: DURATION
+  duration_seconds: 14400
+chain:
+  primitive: ALL
+  explanation_required: true
+  components:
+    - strategy_id: gold_context_trigger
+      strategy_version: 1.0.0
+      direction_relationship: SAME
+      required_states: [MATCHED, ACTIVE]
+    - strategy_id: golden_cross
+      strategy_version: 1.0.0
+      direction_relationship: SAME
+      required_states: [MATCHED, ACTIVE, WEAKENING]

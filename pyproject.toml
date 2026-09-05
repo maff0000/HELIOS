@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "helios"
+version = "1.0.0"
+description = "HELIOS — deterministic, execution-blind strategy-state engine."
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.7,<3",
+    "PyYAML>=6,<7",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<10", "wheel>=0.38", "jsonschema>=4.10,<5"]
+
+[tool.setuptools.packages.find]
+include = ["helios*"]
+
+# The reference strategy packages are package DATA, not source. `packages.find`
+# discovers importable packages only, so `helios/strategies/packages/` — a data
+# directory with no `__init__.py` — is invisible to it and the YAML files would
+# be absent from any built distribution. `helios.strategies.catalogue`
+# resolves REFERENCE_PACKAGE_DIRECTORY relative to its own module file, so in
+# an installed layout the directory would simply not be there.
+[tool.setuptools.package-data]
+"helios.strategies" = ["packages/*.yaml"]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-ra --strict-markers"

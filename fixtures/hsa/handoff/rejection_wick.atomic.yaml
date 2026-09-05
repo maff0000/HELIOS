@@ -1,0 +1,36 @@
+# HSA-authored atomic strategy: a candle whose wick dominates its range.
+schema_version: helios.strategy_package/1.0.0
+kind: ATOMIC
+identity:
+  strategy_id: rejection_wick
+  strategy_version: 1.0.0
+metadata:
+  title: Rejection wick
+  description: >-
+    Strategy-local candle geometry on the confirmation frame, not a reusable
+    market indicator HERMES should own.
+  authored_by: HSA
+  authored_at_utc: 2026-01-02T09:10:00Z
+inputs:
+  - role: CONFIRMATION
+    timeframe: M15
+    lookback: 1
+    required_fields: [open, high, low, close]
+parameters:
+  min_wick_ratio:
+    type: DECIMAL
+    value: 0.6
+    minimum: 0
+    maximum: 1
+    description: Wick length as a fraction of the candle range.
+direction:
+  mode: DIRECTIONAL
+  resolution: STRATEGY_LOCAL
+timing:
+  evaluate_on: CLOSED_FRAME
+persistence:
+  min_matched_frames: 1
+  weakening_enabled: false
+expiry:
+  mode: FRAMES
+  frames: 4

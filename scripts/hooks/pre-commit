@@ -1,0 +1,37 @@
+#!/usr/bin/env sh
+#
+# HELIOS pre-commit gate: refuse any commit whose staged content contains a
+# secret. This repository is public; a credential committed here is a
+# credential disclosed.
+#
+# Installed by ops/bootstrap, which points core.hooksPath at scripts/hooks so
+# the gate travels with the repository and works from a fresh clone.
+
+set -eu
+
+REPO_ROOT=$(git rev-parse --show-toplevel)
+CONFIG="${REPO_ROOT}/.gitleaks.toml"
+
+if ! command -v gitleaks >/dev/null 2>&1; then
+    echo "pre-commit: gitleaks is not installed or not on PATH." >&2
+    echo "pre-commit: install it, then run ops/bootstrap again." >&2
+    echo "pre-commit: refusing to commit unscanned content." >&2
+    exit 1
+fi
+
+if [ ! -f "${CONFIG}" ]; then
+    echo "pre-commit: ${CONFIG} is missing; refusing to scan with unknown rules." >&2
+    exit 1
+fi
+
+if ! gitleaks git --pre-commit --staged --redact --no-banner \
+        --config "${CONFIG}" "${REPO_ROOT}"; then
+    echo "" >&2
+    echo "pre-commit: gitleaks found a secret in the staged changes." >&2
+    echo "pre-commit: commit refused. Remove the secret and rotate it." >&2
+    echo "pre-commit: do NOT bypass this gate to 'fix it later' - this" >&2
+    echo "pre-commit: repository is public and history is forever." >&2
+    exit 1
+fi
+
+exit 0
