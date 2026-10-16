@@ -1,0 +1,28 @@
+# Gap list (CA item 6)
+
+Every gap names an owner repository and a closing proof. "Owner" is the repository where the change would be made; nothing is changed by this audit.
+
+| Id | Gap | Evidence | Owner repository | Closing proof |
+|---|---|---|---|---|
+| G-01 | Fact schema identity: HERMES publishes `v1` / `hermes.candles.latest`; HELIOS demands `<namespace>/<major.minor.patch>` | CONTRACT-MAPPING A; probe A2 | GOAL (CP-1 and `HERMES-FACT-001` decide); HELIOS adapter implements | ratified decision recorded; adapter golden test refusing an unknown version and accepting the ratified one |
+| G-02 | HERMES numbers are binary floats rounded to 6 places; HELIOS refuses floats | probe A1; `candle_contract_v1.py:131,218` | HELIOS (adapter) | adapter parses from raw text to exact decimals; test comparing text-to-decimal for every price field |
+| G-03 | Field rename `is_closed` to `complete` | probe A4 | HELIOS (adapter) | golden test |
+| G-04 | Extra HERMES indicators (EMA 12/26, bands, ADX) and uppercase session rule | probes A3, A5; HELIOS closed-world | GOAL / `HERMES-FACT-001` (which facts exist), HELIOS (adapter drops or contract extends) | decision record; adapter test proving no unknown field reaches the frame |
+| G-05 | DEV and PROD facts indistinguishable in the frame | a private runtime design record; CONTRACT-MAPPING C | HERMES + HELIOS (matching pass-through) | adapter binds each read to the control-plane environment fields and refuses mismatch; test with a DEV-marked manifest |
+| G-06 | Publisher status, gap and derivation accounting not carried | CONTRACT-MAPPING A | HERMES-FACT-001 (definition), HELIOS adapter (refusal rules) | table of status to action, each covered by a test |
+| G-07 | `ema_200` needs 200 bars; H4 retention of 35 days holds at most about 150 bars if the market is closed at weekends (assumption; arithmetic only), so H4 `ema_200` may be null unless HERMES computes it from deeper history (UNVERIFIED); SMA family not published | `hermes_gaps_v1.py:43`; proof record H4 134 history keys on 2026-09-05 | HERMES | audit A (or a HERMES check) shows non-null H4 `ema_200` on PROD, or the strategy avoids it |
+| G-08 | RSI is Cutler SMA and ATR is SMA, not Wilder | `hermes_indicators_v1.py` method table | HERMES-FACT-001 (declare), HELIOS docs (state) | contract text names the method; HELIOS atom docs reference it |
+| G-09 | Instrument identity: HSA packages say `XAUUSD`; HERMES and HELIOS fixtures say `XAU_USD`. HELIOS accepts `XAUUSD` as a well-formed instrument string but treats it as a different instrument from `XAU_USD`, and no mapping between them was found | HSA package; HERMES alias deny; the HELIOS `Instrument` pattern (lines 85-89 of the contracts symbol-type module) | GOAL-CONTRACT-001 / HERMES-FACT-001 (PID open decision 4) | ruling plus a mapping test |
+| G-10 | Timeframe spelling: HELIOS in-process parsing already accepts `4H`, `5M`, `15M`, `1D` (`helios/contracts/timeframe.py:112-125`); only HERMES's legacy `D` code is not parsed. The remaining question is which spelling is canonical at the boundary | `timeframe.py` parse; `candle_contract_v1.py:32` | same as G-09 | same |
+| G-11 | The adapter's ingest clock is a wall-clock input; determinism claim must be preserved | `Provenance.ingested_at_utc` | HELIOS (HELIOS-T2) | replay test: identical facts and recorded ingest instants give identical output bytes |
+| G-12 | Characterisation of the input of the currently deployed stack: reported privately | private handback | a private strategy runtime repository (deployment), Helm | per the private record; no mutation authorised here |
+| G-13 | `regime` fact absent from HERMES (by design, ARES-owned); no shipped atom uses it | grep of atoms and fixtures; HERMES forbidden terms | ARES / HELIOS-T1 | decision whether HELIOS keeps the optional field |
+| G-14 | Service builds one immutable feed at start; no live-source seam for new windows each cycle | `helios/runtime/service.py:542`; `feed.py` | HELIOS (HELIOS-T2 PID) | PID design; replay determinism test retained |
+| G-15 | No HSA to HELIOS package emitter; the two package schemas are different shapes | TESTS 3 | HSA and HELIOS (HELIOS-T1 / goal.strategy/v1) | converter or common contract; both candidate packages load |
+| G-16 | HSA fact needs not matched by HELIOS atoms (SMA vs EMA cross; range margin as fraction of height vs multiple of ATR) | CANDIDATE-REQUIREMENTS | HSA / HELIOS | atom definitions reconciled, evidence under the owning PID |
+| G-17 | HELIOS H4 fixtures use a 00/04/08 grid, HERMES H4 opens 22/02/06; HELIOS tests do not catch this | fixtures read | HELIOS | fixtures regenerated on the HERMES anchor, tests unchanged |
+| G-18 | Audit A (PROD facts) not available: completeness, freshness and presence of every key are UNVERIFIED | none | GOLD-AUD-A | A output reconciled with CANDIDATE-REQUIREMENTS |
+| G-19 | Acceptance item 1 names the scan tool named in the PID acceptance list on the HELIOS branch but HELIOS has no `tools/` | `git ls-files` | ROGUE / GOAL | run the GOAL tool against the evidence tree or add the tool through a separate item |
+| G-20 | Indicator history for closed bars: contract exists, production activation recorded as pending | PID-HERMES-MVP-001 | HERMES | audit A / HERMES activation record |
+| G-21 | Probe provenance and citation permission unconfirmed | PID open decision 5 | PO / ROGUE | recorded confirmation |
+| G-22 | No GOAL `goal.strategy/v1` text exists on main, only a PID candidate; conformance of HELIOS to it is not testable | GOAL branches | GOAL (`GOAL-CONTRACT-001`) | draft schema published; conformance table re-run |
